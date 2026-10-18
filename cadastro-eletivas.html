@@ -465,71 +465,106 @@ if ('serviceWorker' in navigator) {
       });
     }
 
-    function baixarPDFEletivas() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF('landscape'); // Formato paisagem para caber mais colunas
-  const semestre = document.getElementById('buscaAno').value;
+    async function baixarPdfEletivasCadastradas() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
 
-  // --- INÍCIO DO CABEÇALHO PADRÃO ---
-  try {
-    const imgElement = document.getElementById('logoEscola');
-    const canvas = document.createElement('canvas');
-    canvas.width = imgElement.naturalWidth;
-    canvas.height = imgElement.naturalHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(imgElement, 0, 0);
-    const imgData = canvas.toDataURL('image/png');
-    doc.addImage(imgData, 'PNG', 14, 10, 25, 25);
-  } catch (e) {
-    console.log("Aviso: Imagem bloqueada pelo navegador local para uso no PDF.");
-  }
+      // Função robusta para renderizar a imagem local da logo no PDF
+      const desenharLogoNoPdf = () => {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.src = 'LOGO-removebg-preview.png';
+          img.onload = function () {
+            try {
+              const canvas = document.createElement("canvas");
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext("2d");
+              ctx.drawImage(img, 0, 0);
+              const dataURL = canvas.toDataURL("image/png");
+              doc.addImage(dataURL, 'PNG', 14, 10, 20, 20);
+            } catch (e) {
+              console.log("Erro ao processar imagem para o PDF");
+            }
+            resolve();
+          };
+          img.onerror = () => resolve(); // Se falhar, continua o PDF sem travar
+        });
+      };
 
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text("ESCOLA DE ENSINO MÉDIO DE TEMPO INTEGRAL", 45, 17);
-  doc.setFontSize(14);
-  doc.text("AGOSTINHO NERES PORTELA", 45, 24);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text("Educação Pública de Qualidade", 45, 30);
+      // Aguarda o processamento da imagem do brasão
+      await desenharLogoNoPdf();
 
-  doc.setLineWidth(0.5);
-  doc.line(14, 37, 282, 37); // 282 porque é formato paisagem (landscape)
-  // --- FIM DO CABEÇALHO PADRÃO ---
+      // Cabeçalho institucional formal
+      doc.setTextColor(30, 41, 59);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text("ESCOLA DE ENSINO MÉDIO DE TEMPO INTEGRAL", 38, 16);
+      
+      doc.setFontSize(13);
+      doc.text("AGOSTINHO NERES PORTELA", 38, 22);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Educação Pública de Qualidade", 38, 27);
 
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.text(`RELATÓRIO DE ELETIVAS CADASTRADAS`, 148, 45, { align: "center" });
+      // Linha divisoria elegante
+      doc.setLineWidth(0.5);
+      doc.setDrawColor(200, 200, 200);
+      doc.line(14, 33, 196, 33);
 
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Semestre: ${semestre}`, 14, 53);
+      // Título do Relatório específico de Eletivas Cadastradas
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(15, 118, 110);
+      doc.text("RELATÓRIO DE ELETIVAS CADASTRADAS", 105, 41, { align: 'center' });
 
-  const dataAtual = new Date().toLocaleDateString('pt-BR');
-  const horaAtual = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-  doc.text(`Emitido em: ${dataAtual} às ${horaAtual}`, 282, 53, { align: "right" });
+      // Informações de Emissão e Data
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(50, 50, 50);
+      
+      const dataHoraEmissao = new Date().toLocaleString('pt-BR');
+      doc.text(`Emitido em: ${dataHoraEmissao}`, 196, 49, { align: 'right' });
+      doc.text(`Responsável: ${nomeUser}`, 14, 49);
 
-  doc.autoTable({
-    html: '#tabelaEletivas',
-    startY: 60,
-    theme: 'grid',
-    headStyles: { fillColor: [15, 118, 110] }, // Cor verde do sistema
-    columns: [
-      { header: 'ID' }, { header: 'Dia' }, { header: 'Turma' },
-      { header: 'Eletiva' }, { header: 'Professor' }, { header: 'Vagas' }
-    ],
-    columnStyles: { 6: { cellWidth: 0, halign: 'center', textColor: [255,255,255] } },
-    didParseCell: function(data) {
-      if (data.column.index === 6) {
-         data.cell.styles.fillColor = [255, 255, 255];
-         data.cell.text = '';
+      // Recolhe os dados da tabela de eletivas cadastradas na página
+      let linhas = [];
+      // Procura pelas linhas da tabela de eletivas (ajuste o seletor caso a classe da linha seja diferente)
+      const linhasTabela = document.querySelectorAll('tr.eletiva-row, .tabela-eletivas tr, tbody tr');
+      
+      if (linhasTabela.length > 0) {
+        linhasTabela.forEach((tr, index) => {
+          const cols = tr.querySelectorAll('td');
+          if (cols.length >= 3) {
+            // Recolhe colunas comuns (ex: ID/Código, Nome da Eletiva, Professor, Vagas, etc.)
+            let id = cols[0]?.innerText || index;
+            let nomeEletiva = cols[1]?.innerText || "-";
+            let professor = cols[2]?.innerText || "-";
+            let vagas = cols[3]?.innerText || "-";
+            linhas.push([id, nomeEletiva, professor, vagas]);
+          }
+        });
       }
+
+      // Tabela estilizada para Eletivas Cadastradas
+      doc.autoTable({
+        startY: 56,
+        head: [['ID', 'Nome da Eletiva', 'Professor(a)', 'Vagas']],
+        body: linhas.length > 0 ? linhas : [[1, 'Nenhuma eletiva carregada', '-', '-']],
+        headStyles: { fillColor: [15, 118, 110], textColor: [255, 255, 255], fontStyle: 'bold' },
+        bodyStyles: { fontSize: 8.5 },
+        columnStyles: { 
+          0: { cellWidth: 25 }, 
+          1: { cellWidth: 85 }, 
+          2: { cellWidth: 60 }, 
+          3: { cellWidth: 12, halign: 'center' } 
+        }
+      });
+
+      doc.save("Relatorio_Eletivas_Cadastradas.pdf");
     }
-  });
-
-  doc.save(`Relatorio_Eletivas_${semestre}.pdf`);
-}
-
   </script>
 </body>
 </html>
