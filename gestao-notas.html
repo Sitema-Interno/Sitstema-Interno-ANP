@@ -277,33 +277,35 @@
       btn.innerHTML = '<i class="bi bi-save-fill me-2"></i>Salvar Notas da Turma'; btn.disabled = false;
     }
 
-    async function baixarPdfNotas() {
+   async function baixarPdfNotas() {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
 
-      // Função para carregar a imagem local com tratamento de segurança de ficheiro
-      const carregarLogoComoBase64 = (url) => {
+      // Função robusta para renderizar a imagem local via canvas embutido
+      const desenharLogoNoPdf = () => {
         return new Promise((resolve) => {
           const img = new Image();
-          img.crossOrigin = "Anonymous";
+          img.src = 'LOGO-removebg-preview.png';
           img.onload = function () {
-            const canvas = document.createElement("canvas");
-            canvas.width = img.naturalWidth || img.width;
-            canvas.height = img.naturalHeight || img.height;
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(img, 0, 0);
-            resolve(canvas.toDataURL("image/png"));
+            try {
+              const canvas = document.createElement("canvas");
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext("2d");
+              ctx.drawImage(img, 0, 0);
+              const dataURL = canvas.toDataURL("image/png");
+              doc.addImage(dataURL, 'PNG', 14, 10, 20, 20);
+            } catch (e) {
+              console.log("Erro ao processar imagem para o PDF");
+            }
+            resolve();
           };
-          img.onerror = () => resolve(null);
-          img.src = url;
+          img.onerror = () => resolve(); // Se falhar, continua o PDF sem travar
         });
       };
 
-      // Tenta inserir a imagem real da escola
-      const logoData = await carregarLogoComoBase64('LOGO-removebg-preview.png');
-      if (logoData) {
-        doc.addImage(logoData, 'PNG', 14, 10, 20, 20);
-      }
+      // Aguarda o processamento da imagem antes de gerar o restante do documento
+      await desenharLogoNoPdf();
 
       // Cabeçalho institucional formal
       doc.setTextColor(30, 41, 59);
