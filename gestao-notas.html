@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema Escolar - Gestão de Notas</title>
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+  <style>
+   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; margin: 0; position: relative; }
+
+    /* MARCA D'ÁGUA */
+    .watermark-bg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50vw; max-width: 550px; opacity: 0.10; z-index: -1; pointer-events: none; mix-blend-mode: multiply; }
+    
+    /* CABEÇALHO */
+    .navbar-custom { background-color: transparent; padding: 15px 20px; border-bottom: 1px solid rgba(0,0,0,0.05); }
+    .navbar-brand { font-weight: 700; font-size: 1.5rem; color: #1e293b !important; display: flex; align-items: center; gap: 15px; }
+    .sub-text { font-size: 0.8rem; font-weight: 500; color: #64748b; margin-top: -3px; }
+    .logo-escola { height: 55px; object-fit: contain; mix-blend-mode: multiply; }
+
+    .main-container { padding: 40px 15px; max-width: 1100px; margin: 0 auto; width: 100%; flex: 1; }
+    
+    .card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 30px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); }
+    .card-header-custom { background: transparent; border-bottom: 1px solid #eaeaea; padding-bottom: 15px; margin-bottom: 20px; }
+    .card-header-custom h4 { font-size: 1.25rem; font-weight: 700; margin: 0; color: #1e293b; }
+    
+    .aluno-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid #f1f5f9; }
+    .aluno-row:hover { background-color: #f8fafc; }
+  </style>
+  
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) {
+      window.location.href = 'login.html';
+    }
+  </script>
+</head>
+
+<body>
+
+  <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="">
+
+  <!-- CABEÇALHO -->
+  <nav class="navbar navbar-custom">
+    <div class="container-fluid">
+      <span class="navbar-brand">
+        <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+        <div>
+          Gestão de Notas
+          <div class="sub-text">EEMTI Agostinho Neres</div>
+        </div>
+      </span>
+      <div class="d-flex align-items-center gap-3">
+        
+        <a href="index.html" class="btn btn-outline-secondary btn-sm fw-semibold rounded-pill px-3 shadow-sm" style="border-color: #cbd5e1; color: #334155;">
+          <i class="bi bi-house-door-fill me-1"></i> Início
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main-container">
+    
+    <!-- CARD 1: LANÇAR NOTAS E CARREGAR TURMA -->
+    <div class="card">
+      <div class="card-header-custom d-flex justify-content-between align-items-center">
+        <h4><i class="bi bi-journal-text text-primary me-2"></i>1. Lançar e Gerir Notas da Eletiva</h4>
+       
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label small fw-bold">Ano / Semestre</label>
+            <select id="notasAno" class="form-select" onchange="atualizarEletivasNotas()">
+              <option value="">A carregar semestres...</option>
+            </select>
+          </div>
+          <div class="col-md-8">
+            <label class="form-label small fw-bold">Eletiva</label>
+            <select id="notasEletiva" class="form-select" disabled>
+              <option value="">Selecione primeiro o Ano / Semestre...</option>
+            </select>
+          </div>
+          <div class="col-md-12 mt-3">
+            <button class="btn btn-primary w-100 py-2 fw-semibold" id="btnCarregarAlunosNotas" onclick="carregarAlunosNotas()" style="background-color: #0f766e; border: none;">
+              <i class="bi bi-search me-2"></i>Carregar Turma e Notas Lançadas
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABELA DE ATRIBUIÇÃO DE NOTAS -->
+    <div class="card" id="areaNotas" style="display: none;">
+      <div class="card-header-custom d-flex justify-content-between align-items-center">
+        <h4><i class="bi bi-award text-success me-2"></i>Atribuição de Notas - <span id="tituloEletivaCard"></span></h4>
+        <span class="badge bg-success" id="contadorAlunosNotas"></span>
+      </div>
+      <div class="card-body p-0" id="listaAlunosNotas"></div>
+      <div class="card-body border-top bg-light d-flex justify-content-between">
+        <button class="btn btn-outline-danger" onclick="baixarPdfNotas()"><i class="bi bi-download me-2"></i>Baixar PDF de Notas</button>
+        <button class="btn btn-primary px-4" id="btnSalvarNotas" onclick="salvarNotas()" style="background-color: #0f766e; border: none;">
+          <i class="bi bi-save-fill me-2"></i>Salvar Notas da Turma
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <footer style="padding:20px; text-align:center;"><strong>&copy; <span id="anoAtual"></span> EEMTI Agostinho Neres.</strong></footer>
+
+  <script>
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+
+    const perfilUser = (usuarioLogado.permissao || usuarioLogado.usuario?.role || "").toUpperCase();
+    const nomeUser = usuarioLogado.nome || usuarioLogado.usuario?.nome || "";
+    const API_URL = "https://script.google.com/macros/s/AKfycbyNedpZQsNt5lzHtrCSRfC4bWFEuCHHkZ4ygbm-DDm0NUBVARwS5GNFMu2zB3WutFE/exec";
+
+    async function chamarAPI(payload) {
+      try {
+        const urlComCache = API_URL + "?v=" + new Date().getTime();
+        const res = await fetch(urlComCache, { method: 'POST', body: JSON.stringify(payload) });
+        const dados = await res.json();
+        return dados;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    window.onload = async function() {
+      await carregarAnos();
+    };
+
+    async function carregarAnos() {
+      const selectAno = document.getElementById('notasAno');
+      selectAno.innerHTML = '<option value="">A carregar semestres...</option>';
+
+      const dados = await chamarAPI({ action: 'getFiltrosFrequencia' });
+      let listaAnos = [];
+      if (dados) {
+        if (Array.isArray(dados.anos)) listaAnos = dados.anos;
+        else if (Array.isArray(dados.semestres)) listaAnos = dados.semestres;
+        else if (Array.isArray(dados)) listaAnos = dados;
+      }
+      if (listaAnos.length === 0) listaAnos = ["2026.2", "2026.1", "2025.2", "2025.1"];
+
+      let htmlAnos = '<option value="">Selecione o Semestre...</option>';
+      listaAnos.forEach(a => htmlAnos += `<option value="${a}">${a}</option>`);
+      selectAno.innerHTML = htmlAnos;
+    }
+
+    async function atualizarEletivasNotas() {
+      const semestre = document.getElementById('notasAno').value;
+      const selEletiva = document.getElementById('notasEletiva');
+      if(!semestre) { 
+        selEletiva.innerHTML = '<option value="">Selecione primeiro o Ano / Semestre...</option>'; 
+        selEletiva.disabled = true; 
+        document.getElementById('areaNotas').style.display = 'none';
+        return; 
+      }
+      
+      selEletiva.innerHTML = '<option value="">Buscando Eletivas...</option>';
+      
+      let eletivas;
+      if (perfilUser !== 'ADMINISTRADOR' && perfilUser !== 'DIREÇÃO') {
+        eletivas = await chamarAPI({ action: 'getEletivasProfessor', ano: semestre, professor: nomeUser.toUpperCase() });
+      } else {
+        eletivas = await chamarAPI({ action: 'getEletivasPorAno', ano: semestre });
+      }
+      
+      let html = '<option value="">Selecione a Eletiva...</option>';
+      if(Array.isArray(eletivas) && eletivas.length > 0) {
+         eletivas.forEach(e => html += `<option value="${e}">${e}</option>`);
+         selEletiva.disabled = false;
+      } else {
+         html = '<option value="">Nenhuma eletiva encontrada.</option>';
+         selEletiva.disabled = true;
+      }
+      selEletiva.innerHTML = html;
+      document.getElementById('areaNotas').style.display = 'none';
+    }
+
+    async function carregarAlunosNotas() {
+      const ano = document.getElementById('notasAno').value;
+      const eletiva = document.getElementById('notasEletiva').value;
+      if(!ano || !eletiva) return alert("Selecione o Semestre e a Eletiva.");
+
+      const btn = document.getElementById('btnCarregarAlunosNotas');
+      btn.innerHTML = '<i class="bi bi-hourglass-split spin me-2"></i>A carregar turma e notas...';
+      
+      const dadosTurma = await chamarAPI({ action: 'getAlunosComNotas', semestre: ano, eletiva: eletiva });
+      btn.innerHTML = '<i class="bi bi-search me-2"></i>Carregar Turma e Notas Lançadas';
+
+      if(dadosTurma && Array.isArray(dadosTurma)) {
+        if(dadosTurma.length === 0) { alert("Nenhum aluno encontrado nesta eletiva."); return; }
+
+        document.getElementById('tituloEletivaCard').innerText = eletiva;
+        document.getElementById('contadorAlunosNotas').innerText = dadosTurma.length + " Alunos";
+        const divLista = document.getElementById('listaAlunosNotas');
+        divLista.innerHTML = '';
+
+        dadosTurma.forEach((item, index) => {
+          let notaPreenchida = item.nota !== undefined && item.nota !== null ? item.nota : "";
+          divLista.innerHTML += `
+            <div class="aluno-row">
+              <div class="aluno-nome fw-semibold" style="width: 70%;">${index + 1}. <span class="nome-estudante">${item.aluno}</span></div>
+              <div style="width: 25%;">
+                <input type="number" step="0.1" min="0" max="10" class="form-control text-center input-nota" value="${notaPreenchida}" placeholder="" oninput="validarNota(this)">
+              </div>
+            </div>`;
+        });
+        document.getElementById('areaNotas').style.display = 'block';
+      }
+    }
+
+    function validarNota(input) {
+      let val = parseFloat(input.value);
+      if (val > 10) {
+        input.value = 10;
+        Swal.fire({ title: 'Aviso', text: 'A nota máxima permitida é 10.', icon: 'warning', timer: 1500, showConfirmButton: false });
+      } else if (val < 0) {
+        input.value = 0;
+      }
+    }
+
+    async function salvarNotas() {
+      const btn = document.getElementById('btnSalvarNotas');
+      btn.innerHTML = 'Salvando...'; btn.disabled = true;
+
+      let notasArray = [];
+      let erroNotaInvalida = false;
+
+      document.querySelectorAll('.aluno-row').forEach(row => {
+        const nome = row.querySelector('.nome-estudante').innerText;
+        const inputNota = row.querySelector('.input-nota');
+        const notaVal = inputNota.value;
+
+        if(notaVal !== "") {
+          let num = parseFloat(notaVal);
+          if (num < 0 || num > 10) erroNotaInvalida = true;
+          notasArray.push({ aluno: nome, nota: num });
+        } else {
+          // Permite enviar vazio caso queira limpar a nota
+          notasArray.push({ aluno: nome, nota: "" });
+        }
+      });
+
+      if (erroNotaInvalida) {
+        Swal.fire({ title: 'Atenção', text: 'Todas as notas devem estar obrigatoriamente entre 0 e 10.', icon: 'error', confirmButtonColor: '#0f766e' });
+        btn.innerHTML = '<i class="bi bi-save-fill me-2"></i>Salvar Notas da Turma'; btn.disabled = false;
+        return;
+      }
+
+      const payload = {
+        action: 'salvarNotasEletiva',
+        semestre: document.getElementById('notasAno').value,
+        eletiva: document.getElementById('notasEletiva').value,
+        professor: nomeUser.toUpperCase(),
+        notas: notasArray
+      };
+
+      const res = await chamarAPI(payload);
+      if(res && !res.error) {
+        Swal.fire({ title: 'Sucesso!', text: 'Notas da turma salvas com sucesso!', icon: 'success', confirmButtonColor: '#0f766e', timer: 1800, showConfirmButton: false });
+      } else {
+        Swal.fire({ title: 'Erro', text: res?.error || 'Não foi possível salvar.', icon: 'error', confirmButtonColor: '#e11d48' });
+      }
+      btn.innerHTML = '<i class="bi bi-save-fill me-2"></i>Salvar Notas da Turma'; btn.disabled = false;
+    }
+
+    function baixarPdfNotas() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFontSize(14); doc.setFont("helvetica", "bold");
+      doc.text("MAPA DE LANÇAMENTO DE NOTAS - ELETIVAS", 14, 15);
+      
+      doc.setFontSize(10); doc.setFont("helvetica", "normal");
+      doc.text(`Eletiva: ${document.getElementById('notasEletiva').value}`, 14, 23);
+      doc.text(`Professor(a): ${nomeUser}`, 14, 28);
+      
+      let linhas = [];
+      document.querySelectorAll('.aluno-row').forEach(tr => {
+        const nome = tr.querySelector('.nome-estudante').innerText;
+        const nota = tr.querySelector('.input-nota').value || "-";
+        linhas.push([nome, nota]);
+      });
+
+      doc.autoTable({ startY: 35, head: [['Nome do Aluno', 'Nota Final']], body: linhas, headStyles: { fillColor: [15, 118, 110] } });
+      doc.save("Relatorio_Notas.pdf");
+    }
+  </script>
+</body>
+</html>

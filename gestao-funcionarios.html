@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema Escolar - Gestão de Funcionários</title>
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; margin: 0; padding-top: 90px; }
+    
+    .watermark-bg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50vw; max-width: 550px; opacity: 0.10; z-index: -1; pointer-events: none; mix-blend-mode: multiply; }
+    
+    .navbar-custom { background-color: transparent; padding: 15px 25px; border-bottom: 1px solid rgba(0,0,0,0.06); position: fixed; top: 0; left: 0; width: 100%; z-index: 1000; backdrop-filter: blur(5px); }
+    .navbar-brand { font-weight: 700; font-size: 1.4rem; color: #1e293b !important; display: flex; align-items: center; gap: 15px; }
+    .sub-text { font-size: 0.8rem; font-weight: 500; color: #64748b; margin-top: -2px; }
+    .logo-escola { height: 52px; width: 52px; object-fit: contain; background: transparent !important; mix-blend-mode: multiply; }
+
+    .main-container { padding: 30px 15px; max-width: 900px; margin: 0 auto; width: 100%; flex: 1; }
+    .card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); margin-bottom: 30px; }
+    .card-header-custom { padding: 20px; border-bottom: 1px solid #eaeaea; }
+    .card-header-custom h4 { font-size: 1.25rem; font-weight: 700; margin: 0; color: #1e293b; }
+    
+    .btn-success-custom { background-color: #10b981; border: none; color: white; font-weight: 600; }
+    .btn-success-custom:hover { background-color: #059669; color: white; }
+
+    /* Estilo para a lista de autocomplete suspensa */
+    .autocomplete-results {
+      position: absolute;
+      border: 1px solid #cbd5e1;
+      border-top: none;
+      z-index: 99;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background-color: #fff;
+      border-radius: 0 0 8px 8px;
+      max-height: 200px;
+      overflow-y: auto;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .autocomplete-item {
+      padding: 10px 15px;
+      cursor: pointer;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 0.9rem;
+    }
+    .autocomplete-item:hover {
+      background-color: #f8fafc;
+      color: #0f766e;
+      font-weight: 600;
+    }
+    .search-wrapper { position: relative; }
+  </style>
+  
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) {
+      window.location.href = 'login.html';
+    } else {
+      const perfil = (usuarioLogado.permissao || usuarioLogado.usuario?.role || "").toUpperCase();
+      if (perfil !== 'ADMINISTRADOR' && perfil !== 'DIREÇÃO') {
+        Swal.fire({
+          title: 'Acesso Restrito',
+          text: 'Apenas administradores podem aceder a esta secção.',
+          icon: 'warning',
+          confirmButtonColor: '#0f766e'
+        }).then(() => {
+          window.location.href = 'index.html';
+        });
+      }
+    }
+  </script>
+</head>
+
+<body>
+
+  <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="">
+
+  <!-- CABEÇALHO -->
+  <nav class="navbar navbar-custom">
+    <div class="container-fluid">
+      <span class="navbar-brand">
+        <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+        <div>
+          Cadastro Funcionário
+          <div class="sub-text">EEMTI Agostinho Neres</div>
+        </div>
+      </span>
+      <div class="d-flex align-items-center gap-3">
+        <a href="index.html" class="btn btn-outline-secondary btn-sm fw-semibold rounded-pill px-3 shadow-sm" style="border-color: #cbd5e1; color: #334155;">
+          <i class="bi bi-house-door-fill me-1"></i> Início
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main-container">
+    
+    <h3 class="fw-bold mb-4 text-center" style="color: #1e293b;">Painel do Administrador - Gestão de Funcionários</h3>
+
+    <!-- CARD 1: CADASTRAR FUNCIONÁRIO -->
+    <div class="card">
+      <div class="card-header-custom">
+        <h4><i class="bi bi-person-plus-fill text-success me-2"></i>Cadastrar Novo Funcionário</h4>
+      </div>
+      <div class="card-body p-4">
+        <form id="formCadastroFuncionario" onsubmit="cadastrarFuncionario(event)">
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Nome Completo</label>
+            <input type="text" id="nomeFunc" class="form-control" required placeholder="Digite o nome completo">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Celular / WhatsApp</label>
+            <input type="text" id="celFunc" class="form-control" placeholder="(88) 99999-9999">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">E-mail</label>
+            <input type="email" id="emailFunc" class="form-control" required placeholder="email@escola.com">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Permissão</label>
+            <select id="permissaoFunc" class="form-select form-select-lg fs-6">
+              <option value="Usuário">Usuário (Notas e Frequência)</option>
+              <option value="Administrador">Administrador</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-success-custom w-100 py-2" id="btnSalvarFunc">
+            <i class="bi bi-check-circle-fill me-2"></i>Registar Funcionário
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- CARD 2: BUSCAR E EXCLUIR FUNCIONÁRIOS -->
+    <div class="card">
+      <div class="card-header-custom d-flex justify-content-between align-items-center">
+        <h4><i class="bi bi-search text-primary me-2"></i>Consultar e Gerir Funcionários</h4>
+        <button class="btn btn-outline-secondary btn-sm" onclick="carregarFuncionarios()"><i class="bi bi-arrow-clockwise me-1"></i>Atualizar Lista</button>
+      </div>
+      <div class="card-body p-4">
+        <!-- Campo de busca com sugestões em tempo real -->
+        <div class="mb-3 search-wrapper">
+          <label class="form-label small fw-bold text-muted">Pesquisa Inteligente por Nome ou E-mail</label>
+          <input type="text" id="inputBuscaFunc" class="form-control" placeholder="🔍 Comece a digitar o nome do funcionário..." oninput="tratarBuscaAutocomplete()">
+          <div id="listaSugestoes" class="autocomplete-results"></div>
+        </div>
+
+        <div class="table-responsive mt-3">
+          <table class="table table-hover align-middle border">
+            <thead class="table-light">
+              <tr>
+                <th>Nome</th>
+                <th>E-mail</th>
+                <th>Permissão</th>
+                <th class="text-center">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tabelaFuncionarios">
+              <tr><td colspan="4" class="text-center text-muted">A carregar funcionários...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer style="padding:20px; text-align:center;"><strong>&copy; <span id="anoAtual"></span> EEMTI Agostinho Neres.</strong></footer>
+
+  <script>
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+    const API_URL = "https://script.google.com/macros/s/AKfycbyNedpZQsNt5lzHtrCSRfC4bWFEuCHHkZ4ygbm-DDm0NUBVARwS5GNFMu2zB3WutFE/exec";
+
+    let listaFuncionariosGlobal = [];
+
+    window.onload = async function() {
+      await carregarFuncionarios();
+
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.search-wrapper')) {
+          document.getElementById('listaSugestoes').innerHTML = '';
+        }
+      });
+    };
+
+    async function carregarFuncionarios() {
+      const tbody = document.getElementById('tabelaFuncionarios');
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">A carregar...</td></tr>';
+
+      try {
+        const res = await fetch(API_URL + "?action=getFuncionarios&v=" + new Date().getTime());
+        const dados = await res.json();
+        
+        if(dados && Array.isArray(dados)) {
+          listaFuncionariosGlobal = dados;
+        } else {
+          listaFuncionariosGlobal = [
+            { nome: usuarioLogado.nome || "Administrador", email: usuarioLogado.email || "admin@escola.com", permissao: "Administrador" }
+          ];
+        }
+        renderizarTabela(listaFuncionariosGlobal);
+      } catch (err) {
+        console.error("Aviso do servidor, carregando dados locais/sessão:", err);
+        listaFuncionariosGlobal = [
+          { nome: usuarioLogado.nome || "Administrador", email: usuarioLogado.email || "admin@escola.com", permissao: "Administrador" }
+        ];
+        renderizarTabela(listaFuncionariosGlobal);
+      }
+    }
+
+    function renderizarTabela(funcionarios) {
+      const tbody = document.getElementById('tabelaFuncionarios');
+      tbody.innerHTML = '';
+
+      if(!funcionarios || funcionarios.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Nenhum registo correspondente.</td></tr>';
+        return;
+      }
+
+      funcionarios.forEach(f => {
+        const nome = f.nome || f.Nome || "Sem Nome";
+        const email = f.email || f.Email || "Sem E-mail";
+        const perm = f.permissao || f.Permissao || "Usuário";
+
+        tbody.innerHTML += `
+          <tr>
+            <td class="fw-semibold">${nome}</td>
+            <td>${email}</td>
+            <td><span class="badge ${ perm === 'Administrador' ? 'bg-danger' : 'bg-success' }">${perm}</span></td>
+            <td class="text-center">
+              <button class="btn btn-outline-danger btn-sm" onclick="excluirFuncionario('${email}')" title="Excluir Funcionário">
+                <i class="bi bi-trash-fill"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    // Função de Autocomplete e Filtragem Dinâmica ao Digitar
+    function tratarBuscaAutocomplete() {
+      const termo = document.getElementById('inputBuscaFunc').value.toLowerCase().trim();
+      const containerSugestoes = document.getElementById('listaSugestoes');
+      containerSugestoes.innerHTML = '';
+
+      // Se o campo estiver vazio, restaura imediatamente toda a lista global
+      if (termo === "") {
+        renderizarTabela(listaFuncionariosGlobal);
+        return;
+      }
+
+      const filtrados = listaFuncionariosGlobal.filter(f => 
+        (f.nome || f.Nome || "").toLowerCase().includes(termo) || 
+        (f.email || f.Email || "").toLowerCase().includes(termo)
+      );
+
+      if (filtrados.length > 0) {
+        filtrados.forEach(f => {
+          const nome = f.nome || f.Nome;
+          const email = f.email || f.Email;
+          const div = document.createElement('div');
+          div.className = 'autocomplete-item';
+          div.innerHTML = `<strong>${nome}</strong> <span class="text-muted small">(${email})</span>`;
+          div.onclick = () => {
+            document.getElementById('inputBuscaFunc').value = nome;
+            containerSugestoes.innerHTML = '';
+            renderizarTabela([f]);
+          };
+          containerSugestoes.appendChild(div);
+        });
+      }
+
+      renderizarTabela(filtrados);
+    }
+
+    async function cadastrarFuncionario(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnSalvarFunc');
+      btn.innerText = "A registar..."; btn.disabled = true;
+
+      const payload = {
+        action: 'cadastrarFuncionario',
+        nome: document.getElementById('nomeFunc').value,
+        celular: document.getElementById('celFunc').value,
+        email: document.getElementById('emailFunc').value,
+        permissao: document.getElementById('permissaoFunc').value
+      };
+
+      try {
+        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
+        const resp = await res.json();
+
+        if(resp && !resp.error) {
+          Swal.fire({ title: 'Sucesso!', text: 'Funcionário registado com sucesso.', icon: 'success', confirmButtonColor: '#10b981' });
+          document.getElementById('formCadastroFuncionario').reset();
+          carregarFuncionarios();
+        } else {
+          Swal.fire({ title: 'Erro', text: resp.error || 'Não foi possível registar.', icon: 'error', confirmButtonColor: '#e11d48' });
+        }
+      } catch (err) {
+        Swal.fire({ title: 'Erro', text: 'Falha de comunicação com o servidor.', icon: 'error', confirmButtonColor: '#e11d48' });
+      }
+      btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Registar Funcionário'; btn.disabled = false;
+    }
+
+    async function excluirFuncionario(email) {
+      Swal.fire({
+        title: 'Excluir Funcionário?',
+        text: `Tem a certeza que deseja remover o funcionário com o e-mail: ${email}?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sim, excluir',
+        cancelButtonText: 'Cancelar'
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          try {
+            const res = await fetch(API_URL, { 
+              method: 'POST', 
+              body: JSON.stringify({ action: 'excluirFuncionario', email: email }) 
+            });
+            const resp = await res.json();
+
+            if(resp && !resp.error) {
+              Swal.fire({ title: 'Removido!', text: 'Funcionário excluído com sucesso.', icon: 'success', confirmButtonColor: '#10b981' });
+              carregarFuncionarios();
+            } else {
+              Swal.fire({ title: 'Erro', text: resp.error || 'Erro ao excluir.', icon: 'error', confirmButtonColor: '#e11d48' });
+            }
+          } catch (err) {
+            Swal.fire({ title: 'Erro', text: 'Falha na comunicação com o servidor.', icon: 'error', confirmButtonColor: '#e11d48' });
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>

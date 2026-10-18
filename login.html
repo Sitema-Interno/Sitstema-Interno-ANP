@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Portal Escolar Integrado</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  
+  <style>
+    body {
+      background-color: #f4f7f6;
+      font-family: 'Inter', sans-serif;
+      position: relative;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Marca d'água ao fundo com o brasão da escola */
+    body::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 450px;
+      height: 450px;
+      background: url('LOGO-removebg-preview.png') no-repeat center center;
+      background-size: contain;
+      opacity: 0.06; /* Deixa suave como marca d'água */
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .login-container {
+      position: relative;
+      z-index: 1;
+    }
+
+    .login-card {
+      border: none;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(5px);
+    }
+
+    .btn-custom {
+      background-color: #0f766e;
+      color: white;
+    }
+    .btn-custom:hover {
+      background-color: #115e59;
+      color: white;
+    }
+  </style>
+</head>
+<body class="d-flex align-items-center justify-content-center">
+  
+
+  <div class="container login-container d-flex justify-content-center">
+    <div class="card login-card p-4 p-md-5" style="width: 100%; max-width: 420px;">
+      
+      <div class="text-center mb-4">
+        <h3 class="fw-bold text-dark mb-1">Portal Escolar</h3>
+        <p class="text-muted small mb-0">EEMTI Agostinho Neres Portela</p>
+      </div>
+
+      <!-- FORMULÁRIO DE LOGIN -->
+      <form id="formLogin">
+        <div class="mb-3">
+          <label class="form-label fw-semibold small text-secondary">E-mail Cadastrado</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light border-end-0"><i class="bi bi-envelope text-muted"></i></span>
+            <input type="email" id="emailLogin" class="form-control border-start-0 bg-light" required placeholder="seu.email@escola.com">
+          </div>
+        </div>
+        
+        <div class="mb-3">
+          <label class="form-label fw-semibold small text-secondary">Senha</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light border-end-0"><i class="bi bi-lock text-muted"></i></span>
+            <input type="password" id="senhaLogin" class="form-control border-start-0 bg-light" required placeholder="••••••••">
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-4 small">
+          <a href="#" onclick="iniciarPrimeiroAcesso()" class="text-decoration-none text-success fw-semibold">Primeiro Acesso / Criar Senha</a>
+          <a href="#" onclick="abrirRecuperacao()" class="text-decoration-none text-muted">Esqueceu a senha?</a>
+        </div>
+
+        <button type="submit" class="btn btn-custom w-100 py-2 fw-bold shadow-sm">Entrar</button>
+      </form>
+
+    </div>
+  </div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbyNedpZQsNt5lzHtrCSRfC4bWFEuCHHkZ4ygbm-DDm0NUBVARwS5GNFMu2zB3WutFE/exec"; // Substitua se necessário
+
+    // Submeter Login
+    document.getElementById('formLogin').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('emailLogin').value.trim();
+      const senha = document.getElementById('senhaLogin').value.trim();
+
+      Swal.fire({ title: 'A aceder...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'fazerLogin', email, senha })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          localStorage.setItem('usuarioLogado', JSON.stringify(data));
+          Swal.fire({
+            title: `Bem-vindo, ${data.nome}!`,
+            text: `Perfil: ${data.permissao}`,
+            icon: 'success',
+            timer: 1500,
+            showConfirmButton: false
+          }).then(() => {
+            window.location.href = 'index.html';
+          });
+        } else {
+          Swal.fire('Atenção', data.error, 'warning');
+        }
+      } catch (err) {
+        Swal.fire('Erro', 'Falha ao conectar com o servidor.', 'error');
+      }
+    });
+
+    // Fluxo de Primeiro Acesso (Exige Apenas E-mail)
+    async function iniciarPrimeiroAcesso() {
+      const { value: email } = await Swal.fire({
+        title: 'Criar Senha (Primeiro Acesso)',
+        text: 'Insira o seu E-mail previamente cadastrado pelo Administrador:',
+        input: 'email',
+        inputPlaceholder: 'seu.email@escola.com',
+        confirmButtonColor: '#0f766e',
+        confirmButtonText: 'Verificar E-mail',
+        showCancelButton: true,
+        cancelButtonText: 'Cancelar',
+        allowOutsideClick: false
+      });
+
+      if (email) {
+        Swal.fire({ title: 'A validar...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        
+        try {
+          const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'validarPrimeiroAcesso', email })
+          });
+          const resp = await res.json();
+
+          if (resp.success) {
+            const { value: novaSenha } = await Swal.fire({
+              title: 'Definir Nova Senha',
+              input: 'password',
+              inputPlaceholder: 'Digite a sua nova senha',
+              confirmButtonColor: '#0f766e',
+              confirmButtonText: 'Guardar Senha',
+              showCancelButton: true,
+              cancelButtonText: 'Cancelar'
+            });
+
+            if (novaSenha) {
+              Swal.fire({ title: 'A guardar...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+              const resSalvar = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'salvarPrimeiroAcesso', email, novaSenha })
+              });
+              const respSalvar = await resSalvar.json();
+              
+              if (respSalvar.success) {
+                Swal.fire('Sucesso!', respSalvar.msg, 'success');
+              } else {
+                Swal.fire('Erro', respSalvar.error, 'error');
+              }
+            }
+          } else {
+            Swal.fire('Acesso Negado', resp.error, 'error');
+          }
+        } catch (e) {
+          Swal.fire('Erro', 'Não foi possível validar os dados.', 'error');
+        }
+      }
+    }
+
+    // Fluxo de Recuperação de Senha (Estilo Netflix com Código)
+    async function abrirRecuperacao() {
+      // PASSO 1: Pede o E-mail
+      const { value: email } = await Swal.fire({
+        title: 'Recuperar Senha',
+        text: 'Insira o seu e-mail cadastrado no sistema:',
+        input: 'email',
+        inputPlaceholder: 'seu.email@escola.com',
+        confirmButtonColor: '#0f766e',
+        confirmButtonText: 'Enviar Código',
+        showCancelButton: true,
+        cancelButtonText: 'Cancelar'
+      });
+
+      if (email) {
+        Swal.fire({ title: 'A enviar e-mail...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        
+        try {
+          const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'recuperarSenha', contato: email })
+          });
+          const resp = await res.json();
+
+          if (resp.success) {
+            // PASSO 2: Pede o PIN de 6 dígitos que foi enviado para o e-mail
+            const { value: codigo } = await Swal.fire({
+              title: 'Código Enviado!',
+              text: 'Verifique a sua caixa de entrada (ou spam) e digite o código de 6 dígitos:',
+              input: 'text',
+              inputPlaceholder: 'Ex: 123456',
+              confirmButtonColor: '#0f766e',
+              confirmButtonText: 'Validar Código',
+              showCancelButton: true,
+              cancelButtonText: 'Cancelar'
+            });
+
+            if (codigo) {
+               Swal.fire({ title: 'A validar código...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+               
+               const resCod = await fetch(API_URL, {
+                 method: 'POST',
+                 body: JSON.stringify({ action: 'validarCodigoRecuperacao', email: email, codigo: codigo })
+               });
+               const respCod = await resCod.json();
+
+               if (respCod.success) {
+                 // PASSO 3: Se o PIN estiver certo, pede a Nova Senha
+                 const { value: novaSenha } = await Swal.fire({
+                   title: 'Criar Nova Senha',
+                   text: 'Digite a sua nova senha de acesso:',
+                   input: 'password',
+                   inputPlaceholder: 'Nova senha',
+                   confirmButtonColor: '#0f766e',
+                   confirmButtonText: 'Guardar Nova Senha',
+                   showCancelButton: true,
+                   cancelButtonText: 'Cancelar'
+                 });
+
+                 if (novaSenha) {
+                    Swal.fire({ title: 'A guardar nova senha...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    
+                    const resSalvar = await fetch(API_URL, {
+                      method: 'POST',
+                      body: JSON.stringify({ action: 'salvarNovaSenhaRecuperacao', email: email, codigo: codigo, novaSenha: novaSenha })
+                    });
+                    const respSalvar = await resSalvar.json();
+                    
+                    if (respSalvar.success) {
+                      Swal.fire('Sucesso!', respSalvar.msg, 'success');
+                    } else {
+                      Swal.fire('Erro', respSalvar.error, 'error');
+                    }
+                 }
+               } else {
+                 Swal.fire('Código Inválido', respCod.error, 'error');
+               }
+            }
+          } else {
+            Swal.fire('Não encontrado', resp.error, 'error');
+          }
+        } catch (e) {
+          Swal.fire('Erro', 'Falha na comunicação com o servidor.', 'error');
+        }
+      }
+    }
+  </script>
+</body>
+</html>
