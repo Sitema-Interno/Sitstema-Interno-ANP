@@ -451,14 +451,35 @@
 
       const res = await chamarAPI({ action: 'salvarFrequencia', dadosFrequencia: dadosParaSalvar });
       
-      if(res && !res.error && res.msg) {
-        alert("✅ " + res.msg);
-        document.getElementById('freqIdEdit').value = "";
-        document.getElementById('faltososOculto').value = "";
-        document.getElementById('badgeEdicao').classList.add('d-none');
-        document.getElementById('areaFrequencia').style.display = 'none';
-        document.getElementById('freqEletiva').value = "";
-      }
+      if (res && res.success) {
+      Swal.fire({
+        title: 'Sucesso!',
+        text: res.msg || 'Nova frequência registada com sucesso!',
+        icon: 'success',
+        confirmButtonColor: '#0f766e',
+        timer: 2000,
+        showConfirmButton: false
+      });
+      document.getElementById('freqIdEdit').value = "";
+      document.getElementById('faltososOculto').value = "";
+      document.getElementById('badgeEdicao').classList.add('d-none');
+      document.getElementById('areaFrequencia').style.display = 'none';
+      document.getElementById('freqEletiva').value = "";
+    } else if (res && res.jaExiste) {
+      Swal.fire({
+        title: 'Ação Bloqueada!',
+        text: res.msg || 'Já existe uma frequência registada para esta eletiva nesta data.',
+        icon: 'warning',
+        confirmButtonColor: '#0f766e'
+      });
+    } else {
+      Swal.fire({
+        title: 'Atenção',
+        text: res?.msg || 'Não foi possível concluir o registo.',
+        icon: 'error',
+        confirmButtonColor: '#e11d48'
+      });
+    }
       btn.innerHTML = '<i class="bi bi-save-fill me-2"></i>Salvar Registo'; btn.disabled = false;
     }
 
@@ -560,120 +581,25 @@
       }
     }
 
-    async function baixarPdfFrequencia() {
+    function baixarPdfFaltas() {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
-
-      // Função robusta para renderizar a imagem local da logo no PDF
-      const desenharLogoNoPdf = () => {
-        return new Promise((resolve) => {
-          const img = new Image();
-          img.src = 'LOGO-removebg-preview.png';
-          img.onload = function () {
-            try {
-              const canvas = document.createElement("canvas");
-              canvas.width = img.width;
-              canvas.height = img.height;
-              const ctx = canvas.getContext("2d");
-              ctx.drawImage(img, 0, 0);
-              const dataURL = canvas.toDataURL("image/png");
-              doc.addImage(dataURL, 'PNG', 14, 10, 20, 20);
-            } catch (e) {
-              console.log("Erro ao processar imagem para o PDF");
-            }
-            resolve();
-          };
-          img.onerror = () => resolve(); // Se falhar, continua o PDF sem travar
-        });
-      };
-
-      // Aguarda o processamento da imagem do brasão
-      await desenharLogoNoPdf();
-
-      // Cabeçalho institucional formal
-      doc.setTextColor(30, 41, 59);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.text("ESCOLA DE ENSINO MÉDIO DE TEMPO INTEGRAL", 38, 16);
+      doc.setFontSize(14); doc.setFont("helvetica", "bold");
+      doc.text("RELATÓRIO MENSAL DE FALTAS", 14, 15);
       
-      doc.setFontSize(13);
-      doc.text("AGOSTINHO NERES PORTELA", 38, 22);
+      doc.setFontSize(10); doc.setFont("helvetica", "normal");
+      doc.text(`Eletiva: ${document.getElementById('relEletiva').value}`, 14, 23);
+      doc.text(`Mês: ${document.getElementById('relMes').options[document.getElementById('relMes').selectedIndex].text}`, 14, 28);
       
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(100, 116, 139);
-      doc.text("Educação Pública de Qualidade", 38, 27);
-
-      // Linha divisoria elegante
-      doc.setLineWidth(0.5);
-      doc.setDrawColor(200, 200, 200);
-      doc.line(14, 33, 196, 33);
-
-      // Título do Relatório específico de Frequência
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(15, 118, 110);
-      doc.text("RELATÓRIO DE FREQUÊNCIA - ELETIVAS", 105, 41, { align: 'center' });
-
-      // Informações do Semestre, Professor e Data
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(50, 50, 50);
-      
-      const semestreAtual = document.getElementById('freqAno')?.value || document.getElementById('notasAno')?.value || "2026.2";
-      const eletivaAtual = document.getElementById('freqEletiva')?.value || document.getElementById('notasEletiva')?.value || "Eletiva";
-      const dataHoraEmissao = new Date().toLocaleString('pt-BR');
-
-      doc.text(`Semestre: ${semestreAtual}`, 14, 49);
-      doc.text(`Emitido em: ${dataHoraEmissao}`, 196, 49, { align: 'right' });
-      
-      doc.text(`Eletiva: ${eletivaAtual}`, 14, 55);
-      doc.text(`Professor(a): ${nomeUser}`, 14, 61);
-
-      // Recolhe os dados da tabela de frequência da página
       let linhas = [];
-      // Ajuste o seletor abaixo (.aluno-row ou equivalente na sua página de frequência) para ler os alunos e o status
-      const linhasTabela = document.querySelectorAll('.aluno-row, tr.tr-aluno, .frequencia-row');
-      
-      if (linhasTabela.length > 0) {
-        linhasTabela.forEach((tr, index) => {
-          const nomeElement = tr.querySelector('.nome-estudante, .nome-aluno, td:nth-child(2)');
-          const nome = nomeElement ? nomeElement.innerText : `Aluno ${index + 1}`;
-          
-          // Tenta capturar o estado (Presença/Falta ou campo de input)
-          const inputPresenca = tr.querySelector('input[type="checkbox"], input[type="text"], select');
-          let status = "Presente";
-          if (inputPresenca) {
-            if (inputPresenca.type === 'checkbox') {
-              status = inputPresenca.checked ? "Presente" : "Ausente";
-            } else {
-              status = inputPresenca.value || "Presente";
-            }
-          }
-          linhas.push([index + 1, nome, status]);
-        });
-      } else {
-        // Fallback caso procure por inputs gerais de frequência na tabela
-        document.querySelectorAll('tr').forEach((tr, index) => {
-          if (index === 0) return; // Ignora cabeçalho
-          const cols = tr.querySelectorAll('td');
-          if (cols.length >= 2) {
-            linhas.push([index, cols[0].innerText || `Aluno ${index}`, "Registrado"]);
-          }
-        });
-      }
-
-      // Tabela estilizada para frequência
-      doc.autoTable({
-        startY: 66,
-        head: [['#', 'Nome do Aluno', 'Status / Presença']],
-        body: linhas.length > 0 ? linhas : [[1, 'Nenhum registo encontrado', '-']],
-        headStyles: { fillColor: [15, 118, 110], textColor: [255, 255, 255], fontStyle: 'bold' },
-        bodyStyles: { fontSize: 9 },
-        columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 130 }, 2: { cellWidth: 38, halign: 'center' } }
+      document.querySelectorAll('#tabelaRelatorio tr').forEach(tr => {
+        if(tr.cells.length >= 2) {
+          linhas.push([tr.cells[0].innerText, tr.cells[1].innerText]);
+        }
       });
 
-      doc.save("Relatorio_Frequencia_Eletiva.pdf");
+      doc.autoTable({ startY: 35, head: [['Nome do Aluno', 'Qtd de Faltas']], body: linhas, headStyles: { fillColor: [15, 118, 110] } });
+      doc.save("Relatorio_Faltas.pdf");
     }
   </script>
 </body>
