@@ -1,82 +1,53 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-PT">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistema Escolar - Cadastro de Eletivas</title>
+  <title>Sistema Escolar - Eletivas</title>
   
-  <!-- SweetAlert2 para Alertas Modernos -->
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   
-  <!-- Bibliotecas para gerar o PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; margin: 0; padding-top: 90px; }
     
-    body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; margin: 0; position: relative; }
-
-    /* MARCA D'ÁGUA */
     .watermark-bg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50vw; max-width: 550px; opacity: 0.10; z-index: -1; pointer-events: none; mix-blend-mode: multiply; }
     
-    /* CABEÇALHO */
-    .navbar-custom { background-color: transparent; padding: 15px 20px; border-bottom: 1px solid rgba(0,0,0,0.05); }
-    .navbar-brand { font-weight: 700; font-size: 1.5rem; color: #1e293b !important; display: flex; align-items: center; gap: 15px; }
-    .sub-text { font-size: 0.8rem; font-weight: 500; color: #64748b; margin-top: -3px; }
-    .logo-escola { height: 55px; object-fit: contain; mix-blend-mode: multiply; }
+    .navbar-custom { background-color: transparent; padding: 15px 25px; border-bottom: 1px solid rgba(0,0,0,0.06); position: fixed; top: 0; left: 0; width: 100%; z-index: 1000; backdrop-filter: blur(5px); }
+    .navbar-brand { font-weight: 700; font-size: 1.4rem; color: #1e293b !important; display: flex; align-items: center; gap: 15px; }
+    .sub-text { font-size: 0.8rem; font-weight: 500; color: #64748b; margin-top: -2px; }
+    .logo-escola { height: 52px; width: 52px; object-fit: contain; background: transparent !important; mix-blend-mode: multiply; }
 
-    .main-container { padding: 40px 15px; max-width: 1100px; margin: 0 auto; width: 100%; flex: 1; }
-    
-    .card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 30px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); }
-    .card-header-custom { background: transparent; border-bottom: 1px solid #eaeaea; padding-bottom: 15px; margin-bottom: 20px; }
+    .main-container { padding: 30px 15px; max-width: 1000px; margin: 0 auto; width: 100%; flex: 1; }
+    .card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); }
+    .card-header-custom { padding: 20px; border-bottom: 1px solid #eaeaea; }
     .card-header-custom h4 { font-size: 1.25rem; font-weight: 700; margin: 0; color: #1e293b; }
     
-    .form-control, .form-select { border-radius: 8px; border: 1px solid #ced4da; padding: 10px 15px; }
-    .form-control:focus, .form-select:focus { border-color: #0f766e; box-shadow: 0 0 0 0.25rem rgba(15, 118, 110, 0.15); }
+    .form-switch .form-check-input { width: 3em; height: 1.5em; cursor: pointer; }
+    .form-check-input:checked { background-color: #10b981; border-color: #10b981; }
+    .form-check-input:not(:checked) { background-color: #e11d48; border-color: #e11d48; }
     
-    .btn { border-radius: 8px; padding: 10px 20px; font-weight: 600; }
-    .btn-primary { background-color: #0f766e; border: none; }
-    .btn-primary:hover { background-color: #0d645e; }
-    .btn-success { background-color: #10b981; border: none; }
-    .btn-danger { background-color: #e11d48; border: none; color: white;}
-    .btn-warning { color: #fff; }
+    .aluno-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid #f1f5f9; }
+    .aluno-row:hover { background-color: #f8fafc; }
+    .status-text { font-size: 0.9rem; font-weight: 700; margin-left: 10px; width: 75px; text-align: center;}
     
-    .table th { background-color: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 700; font-size: 0.9rem;}
-    .table td { vertical-align: middle; font-size: 0.9rem; }
-    .loader { display: none; font-weight: 500; color: #64748b; }
-    
-    .footer-custom { text-align: center; padding: 20px; font-size: 0.85rem; color: #64748b; border-top: 1px solid rgba(0,0,0,0.05); }
+    .nav-tabs .nav-link { color: #64748b; font-weight: 600; border: none; border-bottom: 3px solid transparent; padding: 15px 20px; cursor: pointer; }
+    .nav-tabs .nav-link.active { color: #0f766e; background: transparent; border-bottom: 3px solid #0f766e; }
   </style>
+  
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) {
+      window.location.href = 'login.html';
+    }
+  </script>
 </head>
-<script>
-  // Apenas garante que está logado e que é Administrador
-  const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
 
-  if (!usuarioLogado || usuarioLogado.permissao !== 'Administrador') {
-    Swal.fire({
-      title: 'Acesso Restrito',
-      text: 'Esta página é exclusiva para administradores.',
-      icon: 'error',
-      confirmButtonColor: '#0f766e'
-    }).then(() => {
-      window.location.href = 'index.html';
-    });
-  }
-</script>
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then(reg => console.log('Service Worker registrado com sucesso!', reg))
-      .catch(err => console.log('Erro ao registrar Service Worker:', err));
-  });
-}
-</script>
 <body>
 
   <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="">
@@ -87,7 +58,7 @@ if ('serviceWorker' in navigator) {
       <span class="navbar-brand">
         <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
         <div>
-          Eletivas (Cadastro)
+          Eletivas (Frequência)
           <div class="sub-text">EEMTI Agostinho Neres</div>
         </div>
       </span>
@@ -99,370 +70,485 @@ if ('serviceWorker' in navigator) {
     </div>
   </nav>
 
-
   <div class="main-container">
     
-    <!-- ÁREA 1: CADASTRAR NOVA ELETIVA -->
-    <div class="card p-4">
-      <div class="card-header-custom">
-        <h4><i class="bi bi-plus-circle-fill text-primary me-2"></i>1. Cadastrar Nova Eletiva</h4>
-      </div>
-      <form id="formCadastro" onsubmit="event.preventDefault(); salvarNovaEletiva();">
-        <div class="row g-3">
-          <div class="col-md-3">
-            <label class="form-label fw-semibold text-muted small">Semestre / Ano</label>
-            <select id="cadAno" class="form-select" required></select>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label fw-semibold text-muted small">Dia da Semana</label>
-            <select id="cadDia" class="form-select" required>
-              <option value="">Selecione...</option>
-              <option value="SEGUNDA-FEIRA">SEGUNDA-FEIRA</option>
-              <option value="TERÇA-FEIRA">TERÇA-FEIRA</option>
-              <option value="QUARTA-FEIRA">QUARTA-FEIRA</option>
-              <option value="QUINTA-FEIRA">QUINTA-FEIRA</option>
-              <option value="SEXTA-FEIRA">SEXTA-FEIRA</option>
-            </select>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label fw-semibold text-muted small">Turma</label>
-            <select id="cadTurma" class="form-select" required>
-              <option value="">Selecione...</option>
-              <option value="1º ANO">1º ANO</option>
-              <option value="2º ANO">2º ANO</option>
-              <option value="3º ANO">3º ANO</option>
-            </select>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label fw-semibold text-muted small">Vagas</label>
-            <input type="number" id="cadVagas" class="form-control" min="1" max="100" placeholder="Ex: 25" required>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label fw-semibold text-muted small">Nome da Eletiva</label>
-            <input type="text" id="cadNome" class="form-control" placeholder="Ex: LGG038 - INGLÊS BÁSICO" required>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label fw-semibold text-muted small">Professor / Gestão</label>
-            <select id="cadProfessor" class="form-select" required>
-              <option value="">Carregando professores...</option>
-            </select>
-          </div>
-        </div>
-        <button type="submit" class="btn btn-primary w-100 mt-4" id="btnCadastrar">
-          <i class="bi bi-save me-2"></i>Cadastrar Eletiva
-        </button>
-      </form>
-    </div>
-
-    <!-- ÁREA 2: PESQUISAR E GERENCIAR ELETIVAS -->
-    <div class="card p-4">
-      <div class="card-header-custom d-flex justify-content-between align-items-center flex-wrap gap-3">
-        <h4><i class="bi bi-search text-primary me-2"></i>2. Gerenciar Eletivas</h4>
+    <!-- ABAS DE NAVEGAÇÃO -->
+    <ul class="nav nav-tabs mb-4" id="myTab" role="tablist">
+      <li class="nav-item" role="presentation" id="abaCadastroEletiva">
         
-        <div class="d-flex gap-2">
-          <div class="input-group" style="width: 220px;">
-            <select id="buscaAno" class="form-select">
-              <option value="">Semestre...</option>
-            </select>
-            <button class="btn btn-secondary" style="background-color: #64748b; border:none;" onclick="buscarEletivas()" title="Pesquisar"><i class="bi bi-search"></i></button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="lancamento-tab" data-bs-toggle="tab" data-bs-target="#lancamento" type="button" role="tab">
+          <i class="bi bi-pencil-square me-2"></i>Lançar / Editar Diário
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="gerenciar-tab" data-bs-toggle="tab" data-bs-target="#gerenciar" type="button" role="tab">
+          <i class="bi bi-list-task me-2"></i>Gerir Frequências
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="relatorio-tab" data-bs-toggle="tab" data-bs-target="#relatorio" type="button" role="tab">
+          <i class="bi bi-file-earmark-bar-graph-fill me-2"></i>Relatório Mensal
+        </button>
+      </li>
+      
+    </ul>
+
+    <div class="tab-content">
+      
+      <!-- ABA 1: LANÇAMENTO -->
+      <div class="tab-pane fade show active" id="lancamento" role="tabpanel">
+        <div class="card mb-4">
+          <div class="card-header-custom d-flex justify-content-between align-items-center">
+            <h4><i class="bi bi-calendar-check-fill text-primary me-2"></i>Dados da Aula</h4>
+            <span id="badgeEdicao" class="badge bg-warning text-dark d-none">Modo Edição Ativo</span>
           </div>
-          <!-- Botão Gerar PDF -->
-          <button class="btn btn-danger" id="btnPdfEletivas" style="display:none;" onclick="baixarPDFEletivas()" title="Baixar Relatório PDF">
-            <i class="bi bi-file-earmark-pdf-fill me-1"></i> PDF
-          </button>
-        </div>
-      </div>
-      
-      <div id="loaderBusca" class="loader text-center my-3"><i class="bi bi-arrow-repeat spin me-2"></i>A buscar eletivas...</div>
-      
-      <div class="table-responsive" style="display:none;" id="areaTabela">
-        <table class="table table-hover border rounded" id="tabelaEletivas">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Dia</th>
-              <th>Turma</th>
-              <th>Eletiva</th>
-              <th>Professor</th>
-              <th class="text-center">Vagas</th>
-              <th class="text-center no-pdf">Ações</th>
-            </tr>
-          </thead>
-          <tbody id="corpoTabela"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+          <div class="card-body">
+            
+            <input type="hidden" id="freqIdEdit">
+            <input type="hidden" id="faltososOculto"> 
 
-  <!-- MODAL DE EDIÇÃO -->
-  <div class="modal fade" id="modalEditar" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i>Editar Eletiva</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <form id="formEditar" onsubmit="event.preventDefault(); salvarEdicao();">
-            <input type="hidden" id="editLinha">
             <div class="row g-3">
-              <div class="col-md-4">
-                <label class="form-label small">Semestre / Ano</label>
-                <select id="editAno" class="form-select" required></select>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">Data da Aula</label>
+                <input type="date" id="freqData" class="form-control">
               </div>
-              <div class="col-md-4">
-                <label class="form-label small">Dia da Semana</label>
-                <select id="editDia" class="form-select" required>
-                  <option value="SEGUNDA-FEIRA">SEGUNDA-FEIRA</option>
-                  <option value="TERÇA-FEIRA">TERÇA-FEIRA</option>
-                  <option value="QUARTA-FEIRA">QUARTA-FEIRA</option>
-                  <option value="QUINTA-FEIRA">QUINTA-FEIRA</option>
-                  <option value="SEXTA-FEIRA">SEXTA-FEIRA</option>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">Semestre / Ano</label>
+                <select id="freqAno" class="form-select" onchange="carregarEletivasProfessor()"></select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Professor(a)</label>
+                <select id="freqProfessor" class="form-select" onchange="carregarEletivasProfessor()"></select>
+              </div>
+              <div class="col-md-12 mt-3">
+                <label class="form-label small fw-bold">Eletiva</label>
+                <select id="freqEletiva" class="form-select" disabled>
+                  <option value="">Selecione primeiro o Semestre e o Professor...</option>
                 </select>
               </div>
-              <div class="col-md-4">
-                <label class="form-label small">Turma</label>
-                <select id="editTurma" class="form-select" required>
-                  <option value="1º ANO">1º ANO</option>
-                  <option value="2º ANO">2º ANO</option>
-                  <option value="3º ANO">3º ANO</option>
-                </select>
-              </div>
-              <div class="col-md-8">
-                <label class="form-label small">Nome da Eletiva</label>
-                <input type="text" id="editNome" class="form-control" required>
-              </div>
-              <div class="col-md-4">
-                <label class="form-label small">Vagas</label>
-                <input type="number" id="editVagas" class="form-control" required>
-              </div>
-              <div class="col-md-12">
-                <label class="form-label small">Professor / Gestão</label>
-                <select id="editProfessor" class="form-select" required></select>
+              <div class="col-md-12 mt-3">
+                <button class="btn btn-secondary w-100" id="btnBuscarAlunos" onclick="buscarAlunosTurma()" style="background-color: #0f766e; border: none;">
+                  <i class="bi bi-search me-2"></i>Carregar Diário de Classe
+                </button>
               </div>
             </div>
-            <div class="modal-footer mt-4 px-0 pb-0">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-              <button type="submit" class="btn btn-primary" id="btnSalvarEdicao">Salvar Alterações</button>
-            </div>
-          </form>
+          </div>
+        </div>
+
+        <div class="card" id="areaFrequencia" style="display: none;">
+          <div class="card-header-custom d-flex justify-content-between align-items-center">
+            <h4><i class="bi bi-list-check text-primary me-2"></i>Lista de Alunos</h4>
+            <span class="badge bg-success" id="contadorAlunos"></span>
+          </div>
+          <div class="card-body p-0" id="listaAlunos"></div>
+          <div class="card-body border-top bg-light text-end">
+            <button class="btn btn-primary" id="btnSalvar" onclick="salvarDiario()" style="background-color: #0f766e; border: none;">
+              <i class="bi bi-save-fill me-2"></i>Salvar Registo
+            </button>
+          </div>
         </div>
       </div>
+
+      <!-- ABA 2: GERIR FREQUÊNCIAS -->
+      <div class="tab-pane fade" id="gerenciar" role="tabpanel">
+        <div class="card">
+          <div class="card-header-custom">
+            <h4><i class="bi bi-search text-primary me-2"></i>Consultar Registos Lançados</h4>
+          </div>
+          <div class="card-body">
+            <div class="row g-3 align-items-end mb-4">
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">Mês</label>
+                <select id="gerMes" class="form-select">
+                  <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+                  <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+                  <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+                  <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">Semestre / Ano</label>
+                <select id="gerAno" class="form-select" onchange="atualizarEletivasGerir()"></select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Eletiva</label>
+                <select id="gerEletiva" class="form-select">
+                  <option value="">Selecione o Semestre primeiro...</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <button class="btn btn-secondary w-100" onclick="buscarFrequencias()" style="background-color: #0f766e; border: none;"><i class="bi bi-search"></i></button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table table-hover border">
+                <thead class="table-light"><tr><th>Data</th><th>Professor</th><th>Ações</th></tr></thead>
+                <tbody id="tabelaGerenciar"><tr><td colspan="3" class="text-center text-muted">Pesquise para ver os registos.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA 3: RELATÓRIO MENSAL -->
+      <div class="tab-pane fade" id="relatorio" role="tabpanel">
+        <div class="card">
+          <div class="card-header-custom">
+            <h4><i class="bi bi-file-earmark-pdf-fill text-danger me-2"></i>Relatório Quantitativo de Faltas</h4>
+            <p class="text-muted small mb-0 mt-1">Aviso: Cada falta registada equivale automaticamente a 2 aulas no relatório.</p>
+          </div>
+          <div class="card-body">
+            <div class="row g-3 align-items-end mb-4">
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">Mês</label>
+                <select id="relMes" class="form-select">
+                  <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+                  <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+                  <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+                  <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold">Semestre / Ano</label>
+                <select id="relAno" class="form-select" onchange="atualizarEletivasRelatorio()"></select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Eletiva</label>
+                <select id="relEletiva" class="form-select">
+                  <option value="">Selecione o Semestre primeiro...</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <button class="btn btn-danger w-100" onclick="gerarRelatorio()"><i class="bi bi-printer-fill me-1"></i> Gerar</button>
+              </div>
+            </div>
+
+            <div class="table-responsive" style="display:none;" id="areaTabelaRelatorio">
+              <table class="table table-bordered table-striped">
+                <thead class="table-dark"><tr><th>Nome do Aluno</th><th class="text-center">Quantidade de Faltas</th></tr></thead>
+                <tbody id="tabelaRelatorio"></tbody>
+              </table>
+              <button class="btn btn-outline-danger mt-3" onclick="baixarPdfFaltas()"><i class="bi bi-download me-2"></i>Baixar PDF</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 
-  <footer class="footer-custom">
-    <strong>&copy; <span id="anoAtual"></span> EEMTI Agostinho Neres Portela.</strong> Todos os direitos reservados.
-  </footer>
+  <footer style="padding:20px; text-align:center;"><strong>&copy; <span id="anoAtual"></span> EEMTI Agostinho Neres.</strong></footer>
 
   <script>
     document.getElementById('anoAtual').innerText = new Date().getFullYear();
+    document.getElementById('freqData').valueAsDate = new Date();
+    document.getElementById('gerMes').value = new Date().getMonth() + 1;
+    document.getElementById('relMes').value = new Date().getMonth() + 1;
+
+    const perfilUser = (usuarioLogado.permissao || usuarioLogado.usuario?.role || "").toUpperCase();
+    const nomeUser = usuarioLogado.nome || usuarioLogado.usuario?.nome || "";
+
+    document.addEventListener("DOMContentLoaded", () => {
+      if (perfilUser !== 'ADMINISTRADOR' && perfilUser !== 'DIREÇÃO') {
+        const abaCad = document.getElementById('abaCadastroEletiva');
+        if (abaCad) abaCad.style.display = 'none';
+      }
+    });
 
     const API_URL = "https://script.google.com/macros/s/AKfycbyNedpZQsNt5lzHtrCSRfC4bWFEuCHHkZ4ygbm-DDm0NUBVARwS5GNFMu2zB3WutFE/exec";
-
-    let modalInstancia;
 
     async function chamarAPI(payload) {
       if (!navigator.onLine) {
         let fila = JSON.parse(localStorage.getItem('filaOffline') || '[]');
         fila.push(payload);
         localStorage.setItem('filaOffline', JSON.stringify(fila));
-        
-        Swal.fire({
-          title: 'Sistema Interno ANP',
-          text: '📴 Sem conexão com a internet! Os dados foram salvos no dispositivo e serão enviados automaticamente assim que a rede voltar.',
-          icon: 'info',
-          confirmButtonColor: '#0f766e'
-        });
+        alert("📴 Sem conexão com a internet! Os dados foram salvos no dispositivo.");
         return { success: true, msg: "Salvo localmente (Offline)." };
       }
 
       try {
-        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
-        return await res.json();
+        const urlComCache = API_URL + "?v=" + new Date().getTime();
+        const res = await fetch(urlComCache, { method: 'POST', body: JSON.stringify(payload) });
+        const dados = await res.json();
+        if(dados && dados.error) {
+           console.error("Erro do Servidor:", dados.error);
+        }
+        return dados;
       } catch (e) {
-        let fila = JSON.parse(localStorage.getItem('filaOffline') || '[]');
-        fila.push(payload);
-        localStorage.setItem('filaOffline', JSON.stringify(fila));
-        
-        Swal.fire({
-          title: 'Aviso de Rede',
-          text: '⚠️ Erro de rede. Dados guardados localmente para envio posterior.',
-          icon: 'warning',
-          confirmButtonColor: '#0f766e'
-        });
-        return { success: true, msg: "Salvo localmente por falha de rede." };
+        return null;
       }
     }
 
-    // Sincroniza automaticamente assim que a internet volta
-    window.addEventListener('online', async () => {
-      let fila = JSON.parse(localStorage.getItem('filaOffline') || '[]');
-      if (fila.length > 0) {
-        for (let item of fila) {
-          try {
-            await fetch(API_URL, { method: 'POST', body: JSON.stringify(item) });
-          } catch (err) {
-            console.error("Falha ao sincronizar item", err);
-          }
-        }
-        localStorage.removeItem('filaOffline');
-      }
-    });
-
     window.onload = async function() {
-      modalInstancia = new bootstrap.Modal(document.getElementById('modalEditar'));
-      preencherAnos();
-      
-      const profs = await chamarAPI({ action: 'getProfessores' });
-      const selCadProf = document.getElementById('cadProfessor');
-      const selEditProf = document.getElementById('editProfessor');
-      
-      selCadProf.innerHTML = '<option value="">Selecione...</option>';
-      selEditProf.innerHTML = '<option value="">Selecione...</option>';
-      
-      if(profs && profs.length > 0) {
-        profs.forEach(p => {
-          selCadProf.innerHTML += `<option value="${p}">${p}</option>`;
-          selEditProf.innerHTML += `<option value="${p}">${p}</option>`;
-        });
-      } else {
-        selCadProf.innerHTML = '<option value="">Aba PROFESSOR não encontrada ou vazia.</option>';
+      const dados = await chamarAPI({ action: 'getFiltrosFrequencia' });
+      if(dados && dados.anos && dados.professores) {
+        let htmlAnos = '<option value="">Selecione...</option>';
+        dados.anos.forEach(a => htmlAnos += `<option value="${a}">${a}</option>`);
+        
+        document.getElementById('freqAno').innerHTML = htmlAnos;
+        document.getElementById('gerAno').innerHTML = htmlAnos;
+        document.getElementById('relAno').innerHTML = htmlAnos;
+
+        let htmlProfs = '<option value="">Selecione...</option>';
+        dados.professores.forEach(p => htmlProfs += `<option value="${p}">${p}</option>`);
+        
+        const selProf = document.getElementById('freqProfessor');
+        selProf.innerHTML = htmlProfs;
+
+        if (perfilUser !== 'ADMINISTRADOR' && perfilUser !== 'DIREÇÃO') {
+          selProf.value = nomeUser.toUpperCase();
+          selProf.disabled = true;
+          // Já dispara o carregamento das eletivas automaticamente na aba de lançamento
+          carregarEletivasProfessor();
+        }
       }
     };
 
-    function preencherAnos() {
-      const selects = [document.getElementById('cadAno'), document.getElementById('buscaAno'), document.getElementById('editAno')];
-      let htmlAnos = '<option value="">Selecione...</option>';
-      for(let ano = 2024; ano <= 2030; ano++) {
-        htmlAnos += `<option value="${ano}.1">${ano}.1</option>`;
-        htmlAnos += `<option value="${ano}.2">${ano}.2</option>`;
+    // Função inteligente unificada para buscar eletivas (respeitando o perfil do utilizador)
+    async function carregarEletivasFiltradas(semestre) {
+      if (perfilUser !== 'ADMINISTRADOR' && perfilUser !== 'DIREÇÃO') {
+        // Se for professor comum, busca diretamente apenas as eletivas ministradas por ele
+        return await chamarAPI({ action: 'getEletivasProfessor', ano: semestre, professor: nomeUser.toUpperCase() });
+      } else {
+        // Se for admin, traz todas do semestre
+        return await chamarAPI({ action: 'getEletivasPorAno', ano: semestre });
       }
-      selects.forEach(sel => { if(sel.id !== 'buscaAno') sel.innerHTML = htmlAnos; else sel.innerHTML = '<option value="">Filtrar Semestre...</option>' + htmlAnos; });
     }
 
-    async function salvarNovaEletiva() {
-      const dados = {
-        ano: document.getElementById('cadAno').value,
-        dia: document.getElementById('cadDia').value,
-        turma: document.getElementById('cadTurma').value,
-        vagas: document.getElementById('cadVagas').value,
-        nome: document.getElementById('cadNome').value.toUpperCase(),
-        professor: document.getElementById('cadProfessor').value
-      };
-
-      const btn = document.getElementById('btnCadastrar');
-      btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Cadastrando...'; btn.disabled = true;
-
-      const resposta = await chamarAPI({ action: 'cadastrarEletiva', dados: dados });
-      if(resposta && resposta.success) {
-        Swal.fire({ title: 'Sucesso!', text: resposta.msg || 'Eletiva cadastrada!', icon: 'success', confirmButtonColor: '#0f766e' });
-        document.getElementById('formCadastro').reset();
-      }
-      btn.innerHTML = '<i class="bi bi-save me-2"></i>Cadastrar Eletiva'; btn.disabled = false;
-    }
-
-    async function buscarEletivas() {
-      const ano = document.getElementById('buscaAno').value;
-      if(!ano) { 
-        return Swal.fire({ title: 'Atenção', text: 'Selecione um semestre para pesquisar.', icon: 'warning', confirmButtonColor: '#0f766e' });
-      }
+    async function atualizarEletivasGerir() {
+      const semestre = document.getElementById('gerAno').value;
+      const selEletiva = document.getElementById('gerEletiva');
+      if(!semestre) { selEletiva.innerHTML = '<option value="">Selecione o Semestre primeiro...</option>'; return; }
       
-      document.getElementById('loaderBusca').style.display = 'block';
-      document.getElementById('areaTabela').style.display = 'none';
-      document.getElementById('btnPdfEletivas').style.display = 'none';
-
-      const eletivas = await chamarAPI({ action: 'buscarEletivasCadastradas', ano: ano });
+      selEletiva.innerHTML = '<option value="">Buscando Eletivas...</option>';
+      const eletivas = await carregarEletivasFiltradas(semestre);
       
-      document.getElementById('loaderBusca').style.display = 'none';
-      if(eletivas) {
-        const tbody = document.getElementById('corpoTabela');
-        tbody.innerHTML = '';
-        if(eletivas.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Nenhuma eletiva encontrada para este semestre.</td></tr>';
-        } else {
-          document.getElementById('btnPdfEletivas').style.display = 'block';
+      let html = '<option value="">Selecione a Eletiva...</option>';
+      if(Array.isArray(eletivas) && eletivas.length > 0) {
+         eletivas.forEach(e => html += `<option value="${e}">${e}</option>`);
+      } else {
+         html = '<option value="">Nenhuma eletiva encontrada.</option>';
+      }
+      selEletiva.innerHTML = html;
+    }
 
-          eletivas.forEach(e => {
-            const dadosJson = JSON.stringify(e).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
-            
-            tbody.innerHTML += `
-              <tr>
-                <td class="text-muted small">${e.id}</td>
-                <td class="fw-medium">${e.dia}</td>
-                <td>${e.turma}</td>
-                <td>${e.nome}</td>
-                <td>${e.professor}</td>
-                <td class="text-center">${e.vagas}</td>
-                <td class="text-center no-pdf">
-                  <button class="btn btn-warning btn-sm me-1" title="Editar" onclick="abrirModalEdicao('${dadosJson}')"><i class="bi bi-pencil-fill"></i></button>
-                  <button class="btn btn-danger btn-sm" title="Excluir" onclick="excluirEletiva(${e.linha})"><i class="bi bi-trash-fill"></i></button>
-                </td>
-              </tr>
-            `;
-          });
-        }
-        document.getElementById('areaTabela').style.display = 'block';
+    async function atualizarEletivasRelatorio() {
+      const semestre = document.getElementById('relAno').value;
+      const selEletiva = document.getElementById('relEletiva');
+      if(!semestre) { selEletiva.innerHTML = '<option value="">Selecione o Semestre primeiro...</option>'; return; }
+      
+      selEletiva.innerHTML = '<option value="">Buscando Eletivas...</option>';
+      const eletivas = await carregarEletivasFiltradas(semestre);
+      
+      let html = '<option value="">Selecione a Eletiva...</option>';
+      if(Array.isArray(eletivas) && eletivas.length > 0) {
+         eletivas.forEach(e => html += `<option value="${e}">${e}</option>`);
+      } else {
+         html = '<option value="">Nenhuma eletiva encontrada.</option>';
+      }
+      selEletiva.innerHTML = html;
+    }
+
+    async function carregarEletivasProfessor() {
+      const ano = document.getElementById('freqAno').value;
+      const prof = document.getElementById('freqProfessor').value;
+      const selEletiva = document.getElementById('freqEletiva');
+      if(!ano || !prof) return selEletiva.disabled = true;
+
+      const eletivas = await chamarAPI({ action: 'getEletivasProfessor', ano: ano, professor: prof });
+      if(eletivas && eletivas.length > 0) {
+        selEletiva.innerHTML = '<option value="">Selecione a Eletiva...</option>';
+        eletivas.forEach(e => selEletiva.innerHTML += `<option value="${e}">${e}</option>`);
+        selEletiva.disabled = false;
+      } else {
+        selEletiva.innerHTML = '<option value="">Nenhuma eletiva encontrada.</option>';
+        selEletiva.disabled = true;
+      }
+      document.getElementById('areaFrequencia').style.display = 'none';
+    }
+
+    async function buscarAlunosTurma(faltososPreCarregados = null) {
+      const ano = document.getElementById('freqAno').value;
+      const eletiva = document.getElementById('freqEletiva').value;
+      if(!ano || !eletiva) return alert("Selecione a Eletiva.");
+
+      let faltososParaUsar = faltososPreCarregados !== null ? faltososPreCarregados : document.getElementById('faltososOculto').value;
+
+      const btn = document.getElementById('btnBuscarAlunos');
+      btn.innerHTML = '<i class="bi bi-hourglass-split spin me-2"></i>Carregando...';
+      
+      const alunos = await chamarAPI({ action: 'getAlunosFrequencia', ano: ano, eletiva: eletiva });
+      btn.innerHTML = '<i class="bi bi-search me-2"></i>Carregar Diário de Classe';
+
+      if(alunos && Array.isArray(alunos)) {
+        if(alunos.length === 0) { alert("Nenhum aluno matriculado nesta eletiva."); return; }
+
+        document.getElementById('contadorAlunos').innerText = alunos.length + " Alunos";
+        const divLista = document.getElementById('listaAlunos');
+        divLista.innerHTML = '';
+
+        let listaFaltosos = (faltososParaUsar && faltososParaUsar !== "100% PRESENÇA") 
+          ? faltososParaUsar.split(',').map(n => n.trim().toUpperCase()) 
+          : [];
+
+        alunos.forEach((nome, index) => {
+          let nomeLimpo = nome.trim().toUpperCase();
+          let presente = !listaFaltosos.includes(nomeLimpo);
+
+          let checado = presente ? "checked" : "";
+          let texto = presente ? "Presença" : "Falta";
+          let cor = presente ? "text-success" : "text-danger";
+
+          divLista.innerHTML += `
+            <div class="aluno-row">
+              <div class="aluno-nome">${index + 1}. <span class="nome-estudante">${nome}</span></div>
+              <div class="d-flex align-items-center">
+                <div class="form-check form-switch m-0"><input class="form-check-input check-presenca" type="checkbox" ${checado} onchange="alternarStatus(this)"></div>
+                <span class="status-text ${cor}">${texto}</span>
+              </div>
+            </div>`;
+        });
+        document.getElementById('areaFrequencia').style.display = 'block';
       }
     }
 
-    function abrirModalEdicao(jsonString) {
-      const dados = JSON.parse(jsonString);
-      document.getElementById('editLinha').value = dados.linha;
-      document.getElementById('editAno').value = dados.ano;
-      document.getElementById('editDia').value = dados.dia;
-      document.getElementById('editTurma').value = dados.turma;
-      document.getElementById('editNome').value = dados.nome;
-      document.getElementById('editVagas').value = dados.vagas;
-      document.getElementById('editProfessor').value = dados.professor;
-      modalInstancia.show();
+    function alternarStatus(checkbox) {
+      const span = checkbox.closest('.d-flex').querySelector('.status-text');
+      if(checkbox.checked) { span.innerText = "Presença"; span.className = "status-text text-success"; } 
+      else { span.innerText = "Falta"; span.className = "status-text text-danger"; }
     }
 
-    async function salvarEdicao() {
-      const linha = document.getElementById('editLinha').value;
-      const dados = {
-        linha: linha,
-        ano: document.getElementById('editAno').value,
-        dia: document.getElementById('editDia').value,
-        turma: document.getElementById('editTurma').value,
-        vagas: document.getElementById('editVagas').value,
-        nome: document.getElementById('editNome').value.toUpperCase(),
-        professor: document.getElementById('editProfessor').value
-      };
-
-      const btn = document.getElementById('btnSalvarEdicao');
+    async function salvarDiario() {
+      const btn = document.getElementById('btnSalvar');
       btn.innerHTML = 'Salvando...'; btn.disabled = true;
 
-      const resposta = await chamarAPI({ action: 'editarEletiva', dados: dados });
+      let faltososArray = [];
+      document.querySelectorAll('.aluno-row').forEach(row => {
+        if(!row.querySelector('.check-presenca').checked) faltososArray.push(row.querySelector('.nome-estudante').innerText);
+      });
+      let faltososString = faltososArray.length > 0 ? faltososArray.join(", ") : "100% PRESENÇA";
+
+      const dadosParaSalvar = {
+        id: document.getElementById('freqIdEdit').value,
+        data: document.getElementById('freqData').value,
+        semestre: document.getElementById('freqAno').value, 
+        professor: document.getElementById('freqProfessor').value,
+        eletiva: document.getElementById('freqEletiva').value,
+        faltosos: faltososString
+      };
+
+      const res = await chamarAPI({ action: 'salvarFrequencia', dadosFrequencia: dadosParaSalvar });
       
-      if(resposta && resposta.success) {
-        Swal.fire({ title: 'Atualizado!', text: resposta.msg || 'Dados atualizados com sucesso.', icon: 'success', confirmButtonColor: '#0f766e' });
-        modalInstancia.hide();
-        buscarEletivas(); // Recarrega a tabela para mostrar as alterações
+      if(res && !res.error && res.msg) {
+        alert("✅ " + res.msg);
+        document.getElementById('freqIdEdit').value = "";
+        document.getElementById('faltososOculto').value = "";
+        document.getElementById('badgeEdicao').classList.add('d-none');
+        document.getElementById('areaFrequencia').style.display = 'none';
+        document.getElementById('freqEletiva').value = "";
       }
-      
-      btn.innerHTML = 'Salvar Alterações'; btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-save-fill me-2"></i>Salvar Registo'; btn.disabled = false;
     }
 
-    function excluirEletiva(linha) {
-      Swal.fire({
-        title: 'Tem certeza?',
-        text: "Você não poderá reverter a exclusão desta eletiva!",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Sim, excluir!',
-        cancelButtonText: 'Cancelar'
-      }).then(async (result) => {
-        if (result.isConfirmed) {
-          const resposta = await chamarAPI({ action: 'excluirEletiva', dados: { linha: linha } });
-          if(resposta && resposta.success) {
-            Swal.fire({ title: 'Excluído!', text: resposta.msg || 'Eletiva excluída com sucesso.', icon: 'success', confirmButtonColor: '#0f766e' });
-            buscarEletivas(); // Atualiza a tabela
-          }
-        }
+    async function buscarFrequencias() {
+      const mes = document.getElementById('gerMes').value;
+      const semestre = document.getElementById('gerAno').value;
+      const elet = document.getElementById('gerEletiva').value;
+      if(!elet || !semestre) return alert("Preencha Semestre e Eletiva.");
+
+      const tbody = document.getElementById('tabelaGerenciar');
+      tbody.innerHTML = '<tr><td colspan="3" class="text-center">Buscando...</td></tr>';
+      
+      let payload = { action: 'buscarFrequenciasGerenciamento', mes: mes, semestre: semestre, eletiva: elet };
+      if (perfilUser !== 'ADMINISTRADOR' && perfilUser !== 'DIREÇÃO') {
+        payload.professor = nomeUser.toUpperCase();
+      }
+
+      const regs = await chamarAPI(payload);
+      tbody.innerHTML = '';
+      
+      if(!regs || regs.length === 0 || regs.error) return tbody.innerHTML = '<tr><td colspan="3" class="text-center">Nenhum registo encontrado.</td></tr>';
+
+      regs.forEach(r => {
+        r.semestre = semestre; 
+        const dJson = JSON.stringify(r).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
+        tbody.innerHTML += `<tr>
+          <td class="fw-bold">${r.data}</td><td>${r.professor}</td>
+          <td>
+            <button class="btn btn-warning btn-sm me-1" onclick="iniciarEdicao('${dJson}')"><i class="bi bi-pencil-fill"></i></button>
+            <button class="btn btn-danger btn-sm" onclick="deletarFrequencia('${r.id}')"><i class="bi bi-trash-fill"></i></button>
+          </td></tr>`;
       });
+    }
+
+    function iniciarEdicao(jsonStr) {
+      const r = JSON.parse(jsonStr);
+      document.getElementById('lancamento-tab').click();
+      
+      document.getElementById('freqIdEdit').value = r.id;
+      document.getElementById('faltososOculto').value = r.faltosos;
+      document.getElementById('badgeEdicao').classList.remove('d-none');
+      document.getElementById('freqAno').value = r.semestre;
+      
+      if (r.data.includes('/')) {
+        let p = r.data.split('/');
+        document.getElementById('freqData').value = `${p[2]}-${p[1]}-${p[0]}`;
+      } else {
+        document.getElementById('freqData').value = r.data;
+      }
+      
+      document.getElementById('freqProfessor').value = r.professor;
+      
+      carregarEletivasProfessor().then(() => {
+        document.getElementById('freqEletiva').value = r.eletiva;
+        buscarAlunosTurma(r.faltosos); 
+      });
+    }
+
+    async function deletarFrequencia(id) {
+      if(confirm("Deseja mesmo excluir esta folha de frequência?")) {
+        const r = await chamarAPI({ action: 'excluirFrequencia', id: id });
+        if(r && !r.error) { alert(r.msg); buscarFrequencias(); }
+      }
+    }
+
+    async function gerarRelatorio() {
+      const mes = document.getElementById('relMes').value;
+      const semestre = document.getElementById('relAno').value;
+      const elet = document.getElementById('relEletiva').value;
+      const anoCalendario = semestre ? semestre.substring(0,4) : new Date().getFullYear();
+      
+      if(!semestre || !elet) return alert("Selecione Semestre e Eletiva.");
+
+      document.getElementById('tabelaRelatorio').innerHTML = '<tr><td colspan="2" class="text-center">Calculando faltas...</td></tr>';
+      document.getElementById('areaTabelaRelatorio').style.display = 'block';
+
+      let payload = { action: 'getRelatorioFaltas', mes: mes, anoCalendario: anoCalendario, semestre: semestre, eletiva: elet };
+      if (perfilUser !== 'ADMINISTRADOR' && perfilUser !== 'DIREÇÃO') {
+        payload.professor = nomeUser.toUpperCase();
+      }
+
+      const rel = await chamarAPI(payload);
+      
+      const tbody = document.getElementById('tabelaRelatorio');
+      tbody.innerHTML = '';
+      
+      if(!rel || rel.length === 0 || rel.error) return tbody.innerHTML = '<tr><td colspan="2" class="text-center">Nenhum aluno com faltas encontrado.</td></tr>';
+
+      rel.sort((a,b) => b.faltas - a.faltas);
+      let comFalta = rel.filter(a => a.faltas > 0);
+
+      if(comFalta.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="2" class="text-center text-success fw-bold">Nenhuma falta registada neste mês. Todos com 100% de frequência!</td></tr>';
+      } else {
+          comFalta.forEach(a => {
+            let cor = a.faltas >= 6 ? 'text-danger fw-bold' : 'text-danger';
+            tbody.innerHTML += `<tr><td>${a.nome}</td><td class="text-center ${cor}">${a.faltas}</td></tr>`;
+          });
+      }
     }
 
     async function baixarPdfEletivasCadastradas() {
