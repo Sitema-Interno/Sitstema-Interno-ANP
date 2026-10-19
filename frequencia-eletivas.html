@@ -269,21 +269,53 @@
 
     const API_URL = "https://script.google.com/macros/s/AKfycbyNedpZQsNt5lzHtrCSRfC4bWFEuCHHkZ4ygbm-DDm0NUBVARwS5GNFMu2zB3WutFE/exec";
 
+   // ==========================================
+    // SISTEMA OFFLINE E SINCRONIZAÇÃO
+    // ==========================================
     async function chamarAPI(payload) {
-      if (!navigator.onLine) {
-        let fila = JSON.parse(localStorage.getItem('filaOffline') || '[]');
+      const isSalvamento = payload.action === 'salvarFrequencia';
+
+      // 1. SE ESTIVER OFFLINE E FOR PARA SALVAR A FREQUÊNCIA
+      if (!navigator.onLine && isSalvamento) {
+        let fila = JSON.parse(localStorage.getItem('filaOffline_Frequencias') || '[]');
         fila.push(payload);
-        localStorage.setItem('filaOffline', JSON.stringify(fila));
-        alert("📴 Sem conexão com a internet! Os dados foram salvos no dispositivo.");
+        localStorage.setItem('filaOffline_Frequencias', JSON.stringify(fila));
+        
+        Swal.fire({
+          title: 'Modo Offline Ativo 📴',
+          text: 'Sem conexão com a internet! A frequência foi salva no seu dispositivo e será sincronizada automaticamente quando a internet voltar.',
+          icon: 'info',
+          confirmButtonColor: '#0f766e'
+        });
         return { success: true, msg: "Salvo localmente (Offline)." };
       }
 
+      // 2. SE ESTIVER OFFLINE E FOR PARA BUSCAR DADOS (Listas, Alunos, etc)
+      if (!navigator.onLine) {
+        const cacheKey = 'cache_' + payload.action + JSON.stringify(payload);
+        const cachedData = localStorage.getItem(cacheKey);
+        if (cachedData) {
+          return JSON.parse(cachedData); // Retorna os dados do cache local
+        } else {
+          Swal.fire('Erro Offline', 'Você está offline e estes dados ainda não foram carregados no seu aparelho. Conecte-se para baixar a lista de alunos.', 'error');
+          return null;
+        }
+      }
+
+      // 3. SE ESTIVER ONLINE (Faz a requisição normal para o Apps Script)
       try {
         const urlComCache = API_URL + "?v=" + new Date().getTime();
         const res = await fetch(urlComCache, { method: 'POST', body: JSON.stringify(payload) });
         const dados = await res.json();
+        
         if(dados && dados.error) {
            console.error("Erro do Servidor:", dados.error);
+        } else if (dados) {
+           // Salva o retorno no Cache Local (para funcionar na próxima vez que ficar offline)
+           if (!isSalvamento && payload.action !== 'excluirFrequencia') {
+              const cacheKey = 'cache_' + payload.action + JSON.stringify(payload);
+              localStorage.setItem(cacheKey, JSON.stringify(dados));
+           }
         }
         return dados;
       } catch (e) {
@@ -291,7 +323,80 @@
       }
     }
 
+    // 4. FUNÇÃO QUE SINCRONIZA OS DADOS QUANDO A INTERNET VOLTA
+    async function sincronizarDadosOffline() {
+      let fila = JSON.parse(localStorage.getItem('filaOffline_Frequencias') || '[]');
+      if (fila.length === 0 || !navigator.onLine) return; // Nada a sincronizar ou continua offline
+
+      Swal.fire({
+        title: 'Conexão Restaurada! 📶',
+        text: 'A sincronizar frequências salvas offline...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      let filaRestante = [];
+      let sincDetalhes = "";
+      let sucessos = 0;
+
+      // Envia um por um para o Google Sheets
+      for (let payload of fila) {
+        try {
+          const res = await fetch(API_URL + "?v=" + new Date().getTime(), { 
+            method: 'POST', 
+            body: JSON.stringify(payload) 
+          });
+          const dados = await res.json();
+          
+          if (dados.success || dados.jaExiste) {
+             if(dados.success) {
+               sucessos++;
+               // Formata os detalhes do que foi salvo
+               sincDetalhes += `✔️ <b>${payload.dadosFrequencia.eletiva}</b> <br><small class="text-muted">Data da Aula: ${payload.dadosFrequencia.data}</small><br><br>`;
+             } else {
+               sincDetalhes += `⚠️ <b>${payload.dadosFrequencia.eletiva}</b> (Já existia no sistema)<br><br>`;
+             }
+          } else {
+             // Erro no servidor, devolve para a fila para tentar mais tarde
+             filaRestante.push(payload);
+          }
+        } catch (e) {
+          // Caiu a internet de novo no meio do envio, devolve para a fila
+          filaRestante.push(payload);
+        }
+      }
+
+      // Atualiza a fila (limpa os que deram sucesso, mantém os que falharam)
+      localStorage.setItem('filaOffline_Frequencias', JSON.stringify(filaRestante));
+
+      // Mostra o Aviso de Sucesso ao Professor com os dados sincronizados
+      if (sucessos > 0 || sincDetalhes !== "") {
+        Swal.fire({
+          title: 'Sincronização Concluída!',
+          html: `Os seguintes diários offline foram enviados para o sistema com sucesso:<br><br><div style="text-align: left; font-size: 0.9em; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">${sincDetalhes}</div>`,
+          icon: 'success',
+          confirmButtonColor: '#0f766e'
+        }).then(() => {
+          // Se a aba "Gerir Frequências" estiver aberta, atualiza a tabela automaticamente
+          if (document.getElementById('gerenciar-tab').classList.contains('active')) {
+            buscarFrequencias();
+          }
+        });
+      } else {
+        Swal.close();
+      }
+    }
+
+    // 5. EVENTO QUE DETETA QUANDO A INTERNET VOLTA
+    window.addEventListener('online', sincronizarDadosOffline);
+
+    // ==========================================
+    // CARREGAMENTO INICIAL (ONLOAD)
+    // ==========================================
     window.onload = async function() {
+      // Tenta sincronizar se tiver dados pendentes ao abrir a página
+      sincronizarDadosOffline();
+
       const dados = await chamarAPI({ action: 'getFiltrosFrequencia' });
       if(dados && dados.anos && dados.professores) {
         let htmlAnos = '<option value="">Selecione...</option>';
@@ -310,7 +415,7 @@
         if (perfilUser !== 'ADMINISTRADOR' && perfilUser !== 'DIREÇÃO') {
           selProf.value = nomeUser.toUpperCase();
           selProf.disabled = true;
-          // Já dispara o carregamento das eletivas automaticamente na aba de lançamento
+          // Dispara o carregamento das eletivas automaticamente na aba de lançamento
           carregarEletivasProfessor();
         }
       }
@@ -409,25 +514,35 @@
 
           let checado = presente ? "checked" : "";
           let texto = presente ? "Presença" : "Falta";
-          let cor = presente ? "text-success" : "text-danger";
+          let corTexto = presente ? "text-success" : "text-danger";
+          let corNome = presente ? "text-dark" : "text-danger fw-bold";
 
           divLista.innerHTML += `
-            <div class="aluno-row">
-              <div class="aluno-nome">${index + 1}. <span class="nome-estudante">${nome}</span></div>
-              <div class="d-flex align-items-center">
-                <div class="form-check form-switch m-0"><input class="form-check-input check-presenca" type="checkbox" ${checado} onchange="alternarStatus(this)"></div>
-                <span class="status-text ${cor}">${texto}</span>
+            <div class="aluno-row border-bottom p-3 d-flex align-items-center gap-3">
+              <div class="form-check form-switch m-0">
+                <input class="form-check-input check-presenca" type="checkbox" style="cursor: pointer; width: 2.5em; height: 1.25em;" ${checado} onchange="alternarStatus(this)">
               </div>
+              <span class="status-text ${corTexto} fw-semibold" style="min-width: 70px;">${texto}</span>
+              <div class="aluno-nome ${corNome}">${index + 1}. <span class="nome-estudante">${nome}</span></div>
             </div>`;
         });
         document.getElementById('areaFrequencia').style.display = 'block';
       }
     }
+   function alternarStatus(checkbox) {
+      const row = checkbox.closest('.aluno-row');
+      const spanStatus = row.querySelector('.status-text');
+      const nomeDiv = row.querySelector('.aluno-nome');
 
-    function alternarStatus(checkbox) {
-      const span = checkbox.closest('.d-flex').querySelector('.status-text');
-      if(checkbox.checked) { span.innerText = "Presença"; span.className = "status-text text-success"; } 
-      else { span.innerText = "Falta"; span.className = "status-text text-danger"; }
+      if (checkbox.checked) { 
+        spanStatus.innerText = "Presença"; 
+        spanStatus.className = "status-text text-success fw-semibold"; 
+        nomeDiv.className = "aluno-nome text-dark";
+      } else { 
+        spanStatus.innerText = "Falta"; 
+        spanStatus.className = "status-text text-danger fw-semibold"; 
+        nomeDiv.className = "aluno-nome text-danger fw-bold";
+      }
     }
 
     async function salvarDiario() {
