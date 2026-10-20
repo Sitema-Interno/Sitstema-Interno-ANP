@@ -71,7 +71,7 @@ const isGestor = (perfilUser === 'ADMINISTRADOR' || perfilUser === 'DIREÇÃO');
 <div class="foto-preview mb-2" id="boxFoto">
 <i class="bi bi-person-fill" style="font-size: 4rem;"></i>
 </div>
-<span class="badge bg-secondary" id="racSerie">Selecione o Aluno</span>
+<span class="badge bg-secondary" id="racSerieBadge">Aguardando Turma</span>
 </div>
 <div class="col-md-10">
 <div class="row g-3">
@@ -83,12 +83,19 @@ const isGestor = (perfilUser === 'ADMINISTRADOR' || perfilUser === 'DIREÇÃO');
 <label class="form-label small fw-bold">Professor / Servidor</label>
 <input type="text" id="racProfessor" class="form-control bg-light" readonly>
 </div>
-<div class="col-md-12">
-<label class="form-label small fw-bold">Buscar Aluno</label>
-<input class="form-control" list="listaAlunosDatalist" id="racAluno" placeholder="Digite para buscar..." onchange="aoSelecionarAluno()">
-<datalist id="listaAlunosDatalist"></datalist>
+<div class="col-md-6">
+<label class="form-label small fw-bold">Selecionar Série / Turma</label>
+<select id="racFiltroSerie" class="form-select" onchange="carregarAlunosPorSerie()">
+<option value="">Selecione primeiro a turma...</option>
+</select>
 </div>
-<div class="col-md-12 mt-3">
+<div class="col-md-6">
+<label class="form-label small fw-bold">Selecionar Aluno</label>
+<select id="racAluno" class="form-select" disabled onchange="aoSelecionarAluno()">
+<option value="">Selecione a turma primeiro...</option>
+</select>
+</div>
+<div class="col-md-12">
 <label class="form-label small fw-bold">Tipo de Ocorrência</label>
 <select id="racOcorrencia" class="form-select" onchange="aoSelecionarOcorrencia()">
 <option value="">Selecione...</option>
@@ -151,7 +158,6 @@ document.getElementById('racProfessor').value = nomeUser.toUpperCase();
 window.onload = async function() {
   let dados = null;
 
-  // 1. TENTA BUSCAR DA INTERNET SE HOUVER CONEXÃO
   if (navigator.onLine) {
     try {
       const res = await fetch(API_URL + "?v=" + new Date().getTime(), { 
@@ -159,65 +165,86 @@ window.onload = async function() {
       });
       dados = await res.json();
       if (dados && dados.alunos) {
-        // Guarda os dados no dispositivo para uso offline futuro
         localStorage.setItem('cache_alunos_rac', JSON.stringify(dados.alunos));
         localStorage.setItem('cache_ocorrencias_rac', JSON.stringify(dados.ocorrencias));
       }
-    } catch (e) {
-      console.log("Erro ao buscar online, tentando carregar cache local...");
-    }
+    } catch (e) {}
   }
 
-  // 2. SE ESTIVER OFFLINE OU FALHAR A REDE, USA O CACHE GUARDADO NO DISPOSITIVO
   if (!dados || !dados.alunos) {
     const alunosCache = localStorage.getItem('cache_alunos_rac');
     const ocorrenciasCache = localStorage.getItem('cache_ocorrencias_rac');
-    
     if (alunosCache && ocorrenciasCache) {
-      dados = {
-        alunos: JSON.parse(alunosCache),
-        ocorrencias: JSON.parse(ocorrenciasCache)
-      };
-      // Alerta subtil de que está a usar dados offline
-      console.log("A carregar base de dados offline (Cache).");
+      dados = { alunos: JSON.parse(alunosCache), ocorrencias: JSON.parse(ocorrenciasCache) };
     }
   }
 
-  // 3. PREENCHE OS CAMPOS DA TELA SE OS DADOS FOREM ENCONTRADOS
   if(dados) {
     dbAlunos = dados.alunos || [];
     dbOcorrencias = dados.ocorrencias || [];
     
-    let htmlAlunos = '';
-    dbAlunos.forEach(a => htmlAlunos += `<option value="${a.nome}">${a.serie}</option>`);
-    document.getElementById('listaAlunosDatalist').innerHTML = htmlAlunos;
-    document.getElementById('listaAlunosBusca').innerHTML = htmlAlunos;
+    // Extrai séries únicas ordenadas
+    let seriesSet = new Set();
+    dbAlunos.forEach(a => { if(a.serie) seriesSet.add(a.serie); });
+    let htmlSeries = '<option value="">Selecione a série/turma...</option>';
+    Array.from(seriesSet).sort().forEach(s => htmlSeries += `<option value="${s}">${s}</option>`);
+    document.getElementById('racFiltroSerie').innerHTML = htmlSeries;
+    
+    let htmlBusca = '';
+    dbAlunos.forEach(a => htmlBusca += `<option value="${a.nome}">${a.serie}</option>`);
+    document.getElementById('listaAlunosBusca').innerHTML = htmlBusca;
     
     let htmlOc = '<option value="">Selecione a ocorrência...</option>';
     dbOcorrencias.forEach(o => htmlOc += `<option value="${o.descricao}">${o.descricao}</option>`);
     document.getElementById('racOcorrencia').innerHTML = htmlOc;
-  } else {
-    Swal.fire('Modo Offline', 'Nenhum dado descarregado previamente. Por favor, abra a página com internet pelo menos uma vez antes de ficar offline.', 'info');
   }
 };
 
+function carregarAlunosPorSerie() {
+  const serieSelecionada = document.getElementById('racFiltroSerie').value;
+  const selAluno = document.getElementById('racAluno');
+  const badgeSerie = document.getElementById('racSerieBadge');
+  
+  limparFotoENome();
+  
+  if(!serieSelecionada) {
+    selAluno.innerHTML = '<option value="">Selecione a turma primeiro...</option>';
+    selAluno.disabled = true;
+    badgeSerie.innerText = "Aguardando Turma";
+    return;
+  }
+  
+  badgeSerie.innerText = serieSelecionada;
+  const alunosFiltrados = dbAlunos.filter(a => a.serie === serieSelecionada);
+  
+  let html = '<option value="">Selecione o aluno...</option>';
+  alunosFiltrados.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(a => {
+    html += `<option value="${a.nome}">${a.nome}</option>`;
+  });
+  
+  selAluno.innerHTML = html;
+  selAluno.disabled = false;
+}
+
 function aoSelecionarAluno() {
-  const nomeDigitado = document.getElementById('racAluno').value;
-  const aluno = dbAlunos.find(a => a.nome === nomeDigitado);
+  const nomeAluno = document.getElementById('racAluno').value;
+  const aluno = dbAlunos.find(a => a.nome === nomeAluno);
   const boxFoto = document.getElementById('boxFoto');
-  const badgeSerie = document.getElementById('racSerie');
   
   if(aluno) {
-    badgeSerie.innerText = aluno.serie;
     if(aluno.foto && aluno.foto.includes('http')) {
       boxFoto.innerHTML = `<img src="${aluno.foto}" style="width:100%; height:100%; object-fit:cover;">`;
     } else {
       boxFoto.innerHTML = `<i class="bi bi-person-fill" style="font-size: 4rem; color: #94a3b8;"></i>`;
     }
   } else {
-    badgeSerie.innerText = "Aluno não encontrado";
-    boxFoto.innerHTML = `<i class="bi bi-person-fill" style="font-size: 4rem; color: #e2e8f0;"></i>`;
+    boxFoto.innerHTML = `<i class="bi bi-person-fill" style="font-size: 4rem; color: #94a3b8;"></i>`;
   }
+}
+
+function limparFotoENome() {
+  document.getElementById('racAluno').innerHTML = '<option value="">Selecione o aluno...</option>';
+  document.getElementById('boxFoto').innerHTML = `<i class="bi bi-person-fill" style="font-size: 4rem; color: #94a3b8;"></i>`;
 }
 
 function aoSelecionarOcorrencia() {
@@ -234,18 +261,18 @@ function aoSelecionarOcorrencia() {
 
 async function salvarRAC() {
   const btn = document.getElementById('btnSalvarRAC');
+  const serie = document.getElementById('racFiltroSerie').value;
   const alunoNome = document.getElementById('racAluno').value;
   const data = document.getElementById('racData').value;
   const oc = document.getElementById('racOcorrencia').value;
   
-  const aluno = dbAlunos.find(a => a.nome === alunoNome);
-  if(!aluno || !data || !oc) return Swal.fire('Atenção', 'Preencha Aluno, Data e Ocorrência.', 'warning');
+  if(!serie || !alunoNome || !data || !oc) return Swal.fire('Atenção', 'Preencha a Série, Aluno, Data e Ocorrência.', 'warning');
   
   let payload = {
     action: 'salvarOcorrencia',
     dados: {
       id: document.getElementById('racIdEdit').value,
-      serie: aluno.serie,
+      serie: serie,
       aluno: alunoNome,
       data: data.split('-').reverse().join('/'),
       professor: document.getElementById('racProfessor').value,
@@ -255,23 +282,16 @@ async function salvarRAC() {
     }
   };
 
-  // VERIFICA SE ESTÁ OFFLINE
   if (!navigator.onLine) {
     let fila = JSON.parse(localStorage.getItem('filaOffline_RAC') || '[]');
     fila.push(payload);
     localStorage.setItem('filaOffline_RAC', JSON.stringify(fila));
-    
-    Swal.fire({
-      title: 'Modo Offline Ativo',
-      text: 'Sem conexão com a internet. Ocorrência guardada no dispositivo e será enviada assim que estiver online.',
-      icon: 'info',
-      confirmButtonColor: '#0f766e'
-    }).then(() => limparFormularioRAC());
+    Swal.fire({ title: 'Modo Offline Ativo', text: 'Ocorrência guardada no dispositivo e será sincronizada quando houver rede.', icon: 'info' })
+    .then(() => limparFormularioRAC());
     return;
   }
   
   btn.innerHTML = 'Salvando...'; btn.disabled = true;
-  
   const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) }).then(r=>r.json()).catch(()=>null);
   
   if (res && res.success) {
@@ -282,46 +302,17 @@ async function salvarRAC() {
   btn.innerHTML = '<i class="bi bi-save-fill me-2"></i>Registrar Ocorrência'; btn.disabled = false;
 }
 
-// SINCRONIZAÇÃO AUTOMÁTICA QUANDO A INTERNET VOLTA
-async function sincronizarOfflineRAC() {
-  let fila = JSON.parse(localStorage.getItem('filaOffline_RAC') || '[]');
-  if (fila.length === 0 || !navigator.onLine) return;
-  
-  Swal.fire({ title: 'Conexão Restaurada!', text: 'A sincronizar ocorrências pendentes...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-  
-  let filaRestante = [];
-  let sucessos = 0;
-  
-  for (let payload of fila) {
-    try {
-      const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) }).then(r => r.json());
-      if (res && res.success) { sucessos++; } 
-      else { filaRestante.push(payload); }
-    } catch (e) { filaRestante.push(payload); }
-  }
-  
-  localStorage.setItem('filaOffline_RAC', JSON.stringify(filaRestante));
-  
-  if (sucessos > 0) {
-    Swal.fire({
-      title: 'Sincronizado!',
-      text: `${sucessos} ocorrência(s) offline foi(ram) enviada(s) com sucesso para a planilha!`,
-      icon: 'success',
-      confirmButtonColor: '#0f766e'
-    }).then(() => window.location.reload());
-  } else { Swal.close(); }
-}
-
-window.addEventListener('online', sincronizarOfflineRAC);
-
 function limparFormularioRAC() {
   document.getElementById('racIdEdit').value = '';
-  document.getElementById('racAluno').value = '';
+  document.getElementById('racFiltroSerie').value = '';
+  document.getElementById('racAluno').innerHTML = '<option value="">Selecione a turma primeiro...</option>';
+  document.getElementById('racAluno').disabled = true;
   document.getElementById('racOcorrencia').value = '';
   document.getElementById('racGravidade').value = '';
   document.getElementById('racObs').value = '';
   document.getElementById('badgeEdicao').classList.add('d-none');
-  aoSelecionarAluno();
+  document.getElementById('racSerieBadge').innerText = "Aguardando Turma";
+  document.getElementById('boxFoto').innerHTML = `<i class="bi bi-person-fill" style="font-size: 4rem; color: #94a3b8;"></i>`;
 }
 
 async function buscarRegistosRAC() {
@@ -330,11 +321,7 @@ async function buscarRegistosRAC() {
   
   let payload = {
     action: 'buscarOcorrencias',
-    filtros: {
-      aluno: document.getElementById('buscaAluno').value,
-      professorLogado: nomeUser,
-      ignorarRestricao: isGestor
-    }
+    filtros: { aluno: document.getElementById('buscaAluno').value, professorLogado: nomeUser, ignorarRestricao: isGestor }
   };
   
   const regs = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) }).then(r=>r.json()).catch(()=>[]);
@@ -345,7 +332,7 @@ async function buscarRegistosRAC() {
   regs.forEach(r => {
     let podeEditar = (isGestor || r.professor === nomeUser.toUpperCase());
     let acoes = podeEditar ? 
-      `<button class="btn btn-warning btn-sm me-1" onclick="editarRAC('${r.id}', '${r.aluno}', '${r.data}', \`${r.ocorrencia}\`, \`${r.obs}\`)"><i class="bi bi-pencil-fill"></i></button>
+      `<button class="btn btn-warning btn-sm me-1" onclick="editarRAC('${r.id}', '${r.serie}', '${r.aluno}', '${r.data}', \`${r.ocorrencia}\`, \`${r.obs}\`)"><i class="bi bi-pencil-fill"></i></button>
        <button class="btn btn-danger btn-sm" onclick="deletarRAC('${r.id}')"><i class="bi bi-trash-fill"></i></button>` : `<span class="badge bg-secondary">Apenas Visualização</span>`;
        
     tbody.innerHTML += `<tr>
@@ -355,9 +342,11 @@ async function buscarRegistosRAC() {
   });
 }
 
-function editarRAC(id, aluno, data, oc, obs) {
+function editarRAC(id, serie, aluno, data, oc, obs) {
   document.querySelector('[data-bs-target="#lancamento"]').click();
   document.getElementById('racIdEdit').value = id;
+  document.getElementById('racFiltroSerie').value = serie;
+  carregarAlunosPorSerie();
   document.getElementById('racAluno').value = aluno;
   if(data.includes('/')) { let p = data.split('/'); document.getElementById('racData').value = `${p[2]}-${p[1]}-${p[0]}`; }
   document.getElementById('racOcorrencia').value = oc;
@@ -407,7 +396,6 @@ async function gerarRelatorioPDF() {
   document.querySelectorAll('#tabelaGerenciar tr').forEach(tr => {
     let cells = tr.querySelectorAll('td');
     if(cells.length === 6) {
-      // Pega Data, Ocorrência, Gravidade e Professor, omitindo Ações e Nome (já no cabeçalho)
       linhas.push([cells[0].innerText, cells[2].innerText, cells[3].innerText, cells[4].innerText]);
     }
   });
@@ -423,6 +411,17 @@ async function gerarRelatorioPDF() {
   
   doc.save(`Extrato_RAC_${buscaAluno}.pdf`);
 }
+
+async function sincronizarOfflineRAC() {
+  let fila = JSON.parse(localStorage.getItem('filaOffline_RAC') || '[]');
+  if (fila.length === 0 || !navigator.onLine) return;
+  
+  for (let payload of fila) {
+    try { await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) }); } catch (e) {}
+  }
+  localStorage.setItem('filaOffline_RAC', '[]');
+}
+window.addEventListener('online', sincronizarOfflineRAC);
 </script>
 </body>
 </html>
