@@ -149,10 +149,41 @@ document.getElementById('racData').valueAsDate = new Date();
 document.getElementById('racProfessor').value = nomeUser.toUpperCase();
 
 window.onload = async function() {
-  const dados = await fetch(API_URL + "?v=" + new Date().getTime(), { 
-    method: 'POST', body: JSON.stringify({ action: 'getFiltrosOcorrencias' }) 
-  }).then(r => r.json()).catch(() => null);
-  
+  let dados = null;
+
+  // 1. TENTA BUSCAR DA INTERNET SE HOUVER CONEXÃO
+  if (navigator.onLine) {
+    try {
+      const res = await fetch(API_URL + "?v=" + new Date().getTime(), { 
+        method: 'POST', body: JSON.stringify({ action: 'getFiltrosOcorrencias' }) 
+      });
+      dados = await res.json();
+      if (dados && dados.alunos) {
+        // Guarda os dados no dispositivo para uso offline futuro
+        localStorage.setItem('cache_alunos_rac', JSON.stringify(dados.alunos));
+        localStorage.setItem('cache_ocorrencias_rac', JSON.stringify(dados.ocorrencias));
+      }
+    } catch (e) {
+      console.log("Erro ao buscar online, tentando carregar cache local...");
+    }
+  }
+
+  // 2. SE ESTIVER OFFLINE OU FALHAR A REDE, USA O CACHE GUARDADO NO DISPOSITIVO
+  if (!dados || !dados.alunos) {
+    const alunosCache = localStorage.getItem('cache_alunos_rac');
+    const ocorrenciasCache = localStorage.getItem('cache_ocorrencias_rac');
+    
+    if (alunosCache && ocorrenciasCache) {
+      dados = {
+        alunos: JSON.parse(alunosCache),
+        ocorrencias: JSON.parse(ocorrenciasCache)
+      };
+      // Alerta subtil de que está a usar dados offline
+      console.log("A carregar base de dados offline (Cache).");
+    }
+  }
+
+  // 3. PREENCHE OS CAMPOS DA TELA SE OS DADOS FOREM ENCONTRADOS
   if(dados) {
     dbAlunos = dados.alunos || [];
     dbOcorrencias = dados.ocorrencias || [];
@@ -165,6 +196,8 @@ window.onload = async function() {
     let htmlOc = '<option value="">Selecione a ocorrência...</option>';
     dbOcorrencias.forEach(o => htmlOc += `<option value="${o.descricao}">${o.descricao}</option>`);
     document.getElementById('racOcorrencia').innerHTML = htmlOc;
+  } else {
+    Swal.fire('Modo Offline', 'Nenhum dado descarregado previamente. Por favor, abra a página com internet pelo menos uma vez antes de ficar offline.', 'info');
   }
 };
 
@@ -208,21 +241,36 @@ async function salvarRAC() {
   const aluno = dbAlunos.find(a => a.nome === alunoNome);
   if(!aluno || !data || !oc) return Swal.fire('Atenção', 'Preencha Aluno, Data e Ocorrência.', 'warning');
   
-  btn.innerHTML = 'Salvando...'; btn.disabled = true;
-  
   let payload = {
     action: 'salvarOcorrencia',
     dados: {
       id: document.getElementById('racIdEdit').value,
       serie: aluno.serie,
       aluno: alunoNome,
-      data: data.split('-').reverse().join('/'), // Convert YYYY-MM-DD to DD/MM/YYYY
+      data: data.split('-').reverse().join('/'),
       professor: document.getElementById('racProfessor').value,
       ocorrencia: oc,
       obs: document.getElementById('racObs').value,
       gravidade: document.getElementById('racGravidade').value
     }
   };
+
+  // VERIFICA SE ESTÁ OFFLINE
+  if (!navigator.onLine) {
+    let fila = JSON.parse(localStorage.getItem('filaOffline_RAC') || '[]');
+    fila.push(payload);
+    localStorage.setItem('filaOffline_RAC', JSON.stringify(fila));
+    
+    Swal.fire({
+      title: 'Modo Offline Ativo',
+      text: 'Sem conexão com a internet. Ocorrência guardada no dispositivo e será enviada assim que estiver online.',
+      icon: 'info',
+      confirmButtonColor: '#0f766e'
+    }).then(() => limparFormularioRAC());
+    return;
+  }
+  
+  btn.innerHTML = 'Salvando...'; btn.disabled = true;
   
   const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) }).then(r=>r.json()).catch(()=>null);
   
@@ -233,6 +281,38 @@ async function salvarRAC() {
   }
   btn.innerHTML = '<i class="bi bi-save-fill me-2"></i>Registrar Ocorrência'; btn.disabled = false;
 }
+
+// SINCRONIZAÇÃO AUTOMÁTICA QUANDO A INTERNET VOLTA
+async function sincronizarOfflineRAC() {
+  let fila = JSON.parse(localStorage.getItem('filaOffline_RAC') || '[]');
+  if (fila.length === 0 || !navigator.onLine) return;
+  
+  Swal.fire({ title: 'Conexão Restaurada!', text: 'A sincronizar ocorrências pendentes...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+  
+  let filaRestante = [];
+  let sucessos = 0;
+  
+  for (let payload of fila) {
+    try {
+      const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) }).then(r => r.json());
+      if (res && res.success) { sucessos++; } 
+      else { filaRestante.push(payload); }
+    } catch (e) { filaRestante.push(payload); }
+  }
+  
+  localStorage.setItem('filaOffline_RAC', JSON.stringify(filaRestante));
+  
+  if (sucessos > 0) {
+    Swal.fire({
+      title: 'Sincronizado!',
+      text: `${sucessos} ocorrência(s) offline foi(ram) enviada(s) com sucesso para a planilha!`,
+      icon: 'success',
+      confirmButtonColor: '#0f766e'
+    }).then(() => window.location.reload());
+  } else { Swal.close(); }
+}
+
+window.addEventListener('online', sincronizarOfflineRAC);
 
 function limparFormularioRAC() {
   document.getElementById('racIdEdit').value = '';
