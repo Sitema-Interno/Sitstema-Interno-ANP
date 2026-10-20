@@ -8,6 +8,7 @@ const URLS_TO_CACHE = [
   './gestao-notas.html',
   './gestao-funcionarios.html',
   './matricula-eletivas.html',
+  './registro-ocorrencias.html',
   './login.html',
   './manifest.json',
   './LOGO-removebg-preview.png',
