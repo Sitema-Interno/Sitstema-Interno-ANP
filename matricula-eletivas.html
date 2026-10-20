@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+  <meta name="theme-color" content="#0f766e">
+<link rel="manifest" href="manifest.json">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sistema Escolar - Matrícula em Eletivas</title>
@@ -237,16 +239,16 @@ if ('serviceWorker' in navigator) {
 
     // Sincroniza automaticamente assim que a internet volta
     window.addEventListener('online', async () => {
-      let fila = JSON.parse(localStorage.getItem('filaOffline') || '[]');
-      if (fila.length > 0) {
-        for (let item of fila) {
-          try {
-            await fetch(API_URL, { method: 'POST', body: JSON.stringify(item) });
-          } catch (err) {}
-        }
-        localStorage.removeItem('filaOffline');
-      }
-    });
+  let fila = JSON.parse(localStorage.getItem('filaOffline') || '[]');
+  if (fila.length > 0) {
+    Swal.fire({ title: 'A Sincronizar...', text: 'A enviar dados pendentes...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    for (let item of fila) {
+      try { await fetch(API_URL, { method: 'POST', body: JSON.stringify(item) }); } catch (err) {}
+    }
+    localStorage.removeItem('filaOffline');
+    Swal.fire({ title: 'Sincronizado!', text: 'Os dados foram sincronizados com sucesso.', icon: 'success' }).then(() => window.location.reload());
+  }
+});
 
     // Ao iniciar a página, carrega tudo com suporte a Cache Offline
     window.onload = async function() {
