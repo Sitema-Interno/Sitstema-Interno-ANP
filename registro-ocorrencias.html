@@ -266,7 +266,9 @@ async function salvarRAC() {
   const data = document.getElementById('racData').value;
   const oc = document.getElementById('racOcorrencia').value;
   
-  if(!serie || !alunoNome || !data || !oc) return Swal.fire('Atenção', 'Preencha a Série, Aluno, Data e Ocorrência.', 'warning');
+  if(!serie || !alunoNome || !data || !oc) {
+    return Swal.fire('Atenção', 'Preencha a Série, Aluno, Data e Ocorrência.', 'warning');
+  }
   
   let payload = {
     action: 'salvarOcorrencia',
@@ -282,24 +284,51 @@ async function salvarRAC() {
     }
   };
 
+  // VERIFICAÇÃO IMEDIATA DE OFFLINE
   if (!navigator.onLine) {
     let fila = JSON.parse(localStorage.getItem('filaOffline_RAC') || '[]');
     fila.push(payload);
     localStorage.setItem('filaOffline_RAC', JSON.stringify(fila));
-    Swal.fire({ title: 'Modo Offline Ativo', text: 'Ocorrência guardada no dispositivo e será sincronizada quando houver rede.', icon: 'info' })
-    .then(() => limparFormularioRAC());
+    
+    Swal.fire({
+      title: 'Modo Offline Ativo',
+      text: 'Sem conexão com a internet. Ocorrência guardada no dispositivo e será sincronizada assim que a rede voltar!',
+      icon: 'success',
+      confirmButtonColor: '#0f766e',
+      timer: 2000,
+      showConfirmButton: false
+    }).then(() => limparFormularioRAC());
     return;
   }
   
-  btn.innerHTML = 'Salvando...'; btn.disabled = true;
-  const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) }).then(r=>r.json()).catch(()=>null);
+  // SE ESTIVER COM INTERNET, SEGUE O FLUXO NORMAL
+  btn.innerHTML = 'Salvando...'; 
+  btn.disabled = true;
   
-  if (res && res.success) {
-    Swal.fire({ title: 'Sucesso!', text: res.msg, icon: 'success', timer: 1500, showConfirmButton: false }).then(() => limparFormularioRAC());
-  } else {
-    Swal.fire('Erro', 'Ocorreu um erro ao guardar.', 'error');
+  try {
+    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) }).then(r => r.json());
+    
+    if (res && res.success) {
+      Swal.fire({ title: 'Sucesso!', text: res.msg, icon: 'success', timer: 1500, showConfirmButton: false }).then(() => limparFormularioRAC());
+    } else {
+      Swal.fire('Erro', res.error || 'Ocorreu um erro ao guardar.', 'error');
+    }
+  } catch (e) {
+    // Caso caia aqui por falha repentina de rede no momento do envio
+    let fila = JSON.parse(localStorage.getItem('filaOffline_RAC') || '[]');
+    fila.push(payload);
+    localStorage.setItem('filaOffline_RAC', JSON.stringify(fila));
+    
+    Swal.fire({
+      title: 'Salvo Offline',
+      text: 'A conexão falhou no envio, mas a ocorrência foi guardada no dispositivo com segurança.',
+      icon: 'info',
+      confirmButtonColor: '#0f766e'
+    }).then(() => limparFormularioRAC());
   }
-  btn.innerHTML = '<i class="bi bi-save-fill me-2"></i>Registrar Ocorrência'; btn.disabled = false;
+  
+  btn.innerHTML = '<i class="bi bi-save-fill me-2"></i>Registrar Ocorrência'; 
+  btn.disabled = false;
 }
 
 function limparFormularioRAC() {
