@@ -436,107 +436,81 @@ if ('serviceWorker' in navigator) {
     // ==========================================
     // GERAR PDF COM MATRIZ DE MATRÍCULAS DA TURMA
     // ==========================================
-    async function gerarPdfRelatorio() {
-      const ano = document.getElementById('relAno').value;
-      const serie = document.getElementById('relSerie').value;
+    async function baixarRelatorioPDF() {
+  const { jsPDF } = window.jspdf;
+  // Utiliza 'landscape' (paisagem) devido à largura das 6 colunas
+  const doc = new jsPDF('landscape');
+  
+  // 1. INSERÇÃO DA LOGO DA ESCOLA
+  try {
+    const imgElement = document.querySelector('.logo-escola');
+    const canvas = document.createElement('canvas');
+    canvas.width = imgElement.naturalWidth;
+    canvas.height = imgElement.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(imgElement, 0, 0);
+    const imgData = canvas.toDataURL('image/png');
+    doc.addImage(imgData, 'PNG', 14, 10, 25, 25);
+  } catch (e) {
+    console.log("Aviso: Imagem bloqueada para PDF.");
+  }
 
-      if(!ano || !serie) { 
-        return Swal.fire({ title: 'Atenção', text: 'Selecione Semestre e Série para gerar o relatório.', icon: 'warning', confirmButtonColor: '#0f766e' }); 
-      }
+  // 2. CABEÇALHO PADRÃO DA ESCOLA
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("ESCOLA DE ENSINO MÉDIO DE TEMPO INTEGRAL", 45, 17);
+  doc.setFontSize(14);
+  doc.text("AGOSTINHO NERES PORTELA", 45, 24);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("Educação Pública de Qualidade", 45, 30);
+  doc.setLineWidth(0.5);
+  // Linha ajustada para a largura da página em modo paisagem (297mm)
+  doc.line(14, 37, 283, 37);
 
-      if(!navigator.onLine) {
-        return Swal.fire({ title: 'Modo Offline', text: 'É necessário ter internet para gerar e descarregar o relatório em PDF atualizado.', icon: 'info', confirmButtonColor: '#0f766e' });
-      }
+  // 3. TÍTULO E INFORMAÇÕES DO RELATÓRIO
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  // O centro da página em paisagem é aproximadamente 148
+  doc.text("RELATÓRIO DE MATRÍCULAS - ELETIVAS", 148, 45, {align: 'center'});
+  
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  
+  // Lê os filtros que o usuário selecionou na tela
+  const semestre = document.getElementById('relAno') ? document.getElementById('relAno').value : "Não definido";
+  const serie = document.getElementById('relSerie') ? document.getElementById('relSerie').options[document.getElementById('relSerie').selectedIndex].text : "Não definido";
+  
+  doc.text(`Semestre: ${semestre}`, 14, 53);
+  doc.text(`Série/Turma: ${serie}`, 14, 58);
+  
+  // Adiciona a data e hora da emissão
+  const dataAtual = new Date();
+  const dataStr = dataAtual.toLocaleDateString('pt-BR') + ' às ' + dataAtual.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+  doc.text(`Emitido em: ${dataStr}`, 283, 53, {align: 'right'});
 
-      const btnPdf = document.querySelector('.btn-danger');
-      const textOrigin = btnPdf.innerHTML;
-      btnPdf.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Gerando...';
-      
-      const dadosRelatorio = await chamarAPI({ action: 'getRelatorioMatriculas', ano: ano, serie: serie });
-      btnPdf.innerHTML = textOrigin;
-
-      if(!dadosRelatorio || dadosRelatorio.length === 0) {
-        return Swal.fire({ title: 'Atenção', text: `Nenhuma matrícula encontrada para a série ${serie} no semestre ${ano}.`, icon: 'warning', confirmButtonColor: '#0f766e' });
-      }
-
-      let alunosMap = {};
-      
-      dadosRelatorio.forEach(m => {
-        if(!alunosMap[m.aluno]) alunosMap[m.aluno] = {};
-        alunosMap[m.aluno][String(m.dia).trim().toUpperCase()] = m.eletiva;
-      });
-
-      const colunasFixas = ["SEGUNDA-FEIRA", "TERÇA-FEIRA", "QUARTA-FEIRA", "QUINTA-FEIRA", "SEXTA-FEIRA"];
-
-      let linhasPDF = [];
-      let nomesOrdenados = Object.keys(alunosMap).sort(); 
-      
-      nomesOrdenados.forEach(nome => {
-        let linha = [nome];
-        colunasFixas.forEach(dia => {
-          let eletivaNome = alunosMap[nome][dia] || "-";
-          linha.push(eletivaNome);
-        });
-        linhasPDF.push(linha);
-      });
-
-      // === Cria o PDF com Design Oficial ===
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF('landscape'); // Paisagem para caber a tabela inteira
-
-      try {
-        const imgElement = document.getElementById('logoEscola');
-        const canvas = document.createElement('canvas');
-        canvas.width = imgElement.naturalWidth;
-        canvas.height = imgElement.naturalHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(imgElement, 0, 0);
-        const imgData = canvas.toDataURL('image/png');
-        doc.addImage(imgData, 'PNG', 14, 10, 25, 25);
-      } catch (e) {
-        console.log("Aviso: Imagem bloqueada para PDF.");
-      }
-
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "bold");
-      doc.text("ESCOLA DE ENSINO MÉDIO DE TEMPO INTEGRAL", 45, 17);
-      doc.setFontSize(14);
-      doc.text("AGOSTINHO NERES PORTELA", 45, 24);
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.text("Educação Pública de Qualidade", 45, 30);
-
-      doc.setLineWidth(0.5);
-      doc.line(14, 37, 282, 37);
-
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text(`RELATÓRIO DE MATRÍCULAS - ELETIVAS`, 148, 45, { align: "center" });
-
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Semestre: ${ano}`, 14, 53);
-      doc.text(`Série/Turma: ${serie}`, 14, 59);
-      
-      const dataAtual = new Date().toLocaleDateString('pt-BR');
-      const horaAtual = new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-      doc.text(`Emitido em: ${dataAtual} às ${horaAtual}`, 282, 53, { align: "right" });
-
-      doc.autoTable({
-        startY: 65,
-        head: [['NOME DO ALUNO', 'SEGUNDA', 'TERÇA', 'QUARTA', 'QUINTA', 'SEXTA']],
-        body: linhasPDF,
-        theme: 'striped',
-        headStyles: { fillColor: [15, 118, 110] }, 
-        styles: { fontSize: 8, cellPadding: 3, valign: 'middle' },
-        columnStyles: { 
-          0: { cellWidth: 50, fontStyle: 'bold' }
-        }
-      });
-
-      const nomeArquivoSeguro = serie.replace(/[^a-zA-Z0-9]/g, "_");
-      doc.save(`Matriculas_${nomeArquivoSeguro}_${ano}.pdf`);
+  // 4. CAPTURA DOS DADOS DA TABELA
+  let linhas = [];
+  document.querySelectorAll('#tabelaRelatorio tr').forEach(tr => {
+    let linhaArr = [];
+    tr.querySelectorAll('td').forEach(td => linhaArr.push(td.innerText));
+    if(linhaArr.length > 0) {
+      linhas.push(linhaArr);
     }
+  });
+
+  // 5. GERAÇÃO DA TABELA NO PDF
+  doc.autoTable({ 
+    startY: 65, 
+    head: [['NOME DO ALUNO', 'SEGUNDA', 'TERÇA', 'QUARTA', 'QUINTA', 'SEXTA']], 
+    body: linhas, 
+    headStyles: { fillColor: [15, 118, 110] }, // Cor verde da escola
+    styles: { fontSize: 8 }, // Fonte ajustada para caber todas as disciplinas
+    margin: { left: 14, right: 14 }
+  });
+  
+  doc.save("Relatorio_Matriculas_Eletivas.pdf");
+}
   </script>
 </body>
 </html>
