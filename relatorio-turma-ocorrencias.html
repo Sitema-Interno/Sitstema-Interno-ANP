@@ -68,7 +68,7 @@
     <!-- Filtros -->
     <div class="card p-4">
       <div class="card-header-custom">
-        <h4 class="m-0 text-dark fs-5 fw-bold"><i class="bi bi-file-earmark-text text-primary me-2"></i>Gerar Relatório por Turma </h4>
+        <h4 class="m-0 text-dark fs-5 fw-bold"><i class="bi bi-file-earmark-text text-primary me-2"></i>Gerar Relatório por Turma (Frente e Verso - Rigoroso 2 Folhas)</h4>
       </div>
 
       <div class="row g-3 align-items-end">
@@ -102,7 +102,7 @@
     <div class="card p-4 text-center text-muted py-5">
       <i class="bi bi-printer display-4 text-primary mb-3"></i>
       <h5 class="fw-bold text-dark">Pronto para gerar relatórios</h5>
-      <p class="small mb-0">Selecione a turma e o bimestre desejado. O sistema aplica o layout limpo sem sobreposições, marca d'água oficial e garante exatamente 2 folhas por aluno para impressão frente e verso.</p>
+      <p class="small mb-0">Primeira página preenchida totalmente com ocorrências, excedentes direcionados para a página 2, e assinaturas exclusivas na página 2 próximas ao rodapé.</p>
     </div>
 
   </div>
@@ -146,7 +146,6 @@
 
     window.onload = async function() {
       try {
-        // Carregar Séries e Bimestres em simultâneo
         const reqSeries = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'SERIE' }) }).then(r => r.json());
         const reqBim = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'BIMESTRE' }) }).then(r => r.json());
 
@@ -193,7 +192,7 @@
 
       if (!serie) return Swal.fire('Atenção', 'Selecione uma série/turma.', 'warning');
 
-      Swal.fire({ title: 'A gerar relatórios da turma...', text: 'A processar ocorrências e estruturar 2 folhas por aluno...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      Swal.fire({ title: 'A gerar relatórios da turma...', text: 'A processar ocorrências e estruturar exatamente 2 folhas por aluno...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
       try {
         const reqAlunos = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getFiltrosOcorrencias' }) }).then(r => r.json());
@@ -220,9 +219,8 @@
           b.tsFim = parseDataBimestre(b.col3, true);
         });
 
-        // Definir intervalo de datas com base no Bimestre selecionado
         let dataIniMs = 0;
-        let dataFimMs = 86400000000000; // Infinito futuro
+        let dataFimMs = 86400000000000;
 
         if (bimestreSelecionado !== "TODOS") {
           let bObj = arrayBimestres.find(b => b.col1.toUpperCase() === bimestreSelecionado.toUpperCase());
@@ -238,7 +236,6 @@
         for (let aluno of alunosTurma) {
           let ocoAluno = ocorrenciasGlobais.filter(o => (o.aluno || "").trim().toUpperCase() === aluno.nome.toUpperCase());
 
-          // Filtrar ocorrências pelo período do bimestre selecionado
           if (bimestreSelecionado !== "TODOS") {
             ocoAluno = ocoAluno.filter(o => {
               let ts = extrairTimestamp(o.data);
@@ -285,8 +282,8 @@
         for (let i = 0; i < alunosComOcorrencias.length; i++) {
           let item = alunosComOcorrencias[i];
           
-          // Função para desenhar a estrutura de cada página sem sobreposições
-          async function desenharEstruturaPagina(numPaginaAluno) {
+          // Função para desenhar a estrutura de cada página sem assinaturas na página 1
+          async function desenharCabecalhoRodapePagina(numPaginaAluno) {
             if (i > 0 || numPaginaAluno === 2) doc.addPage();
 
             // Marca d'água oficial centralizada
@@ -312,7 +309,7 @@
             doc.setFontSize(12); doc.setFont("helvetica", "bold");
             doc.text("HISTÓRICO DISCIPLINAR DO ALUNO (RAC)", 105, 45, {align: 'center'});
 
-            // Retângulo dedicado para a Foto (x=162, y=42) - Afastado para não sobrepor texto
+            // Retângulo dedicado para a Foto (x=162, y=42)
             doc.setLineWidth(0.3);
             doc.setFillColor(248, 250, 252);
             doc.rect(162, 42, 22, 28, 'FD');
@@ -324,7 +321,7 @@
               } catch(e){}
             }
 
-            // Nome e Série (Limitados à esquerda para não colidir com o retângulo da foto)
+            // Nome e Série
             doc.setFontSize(9); doc.setFont("helvetica", "bold");
             doc.text(`Aluno(a):`, 14, 50);
             doc.setFont("helvetica", "normal");
@@ -335,7 +332,7 @@
             doc.setFont("helvetica", "normal");
             doc.text(`${item.aluno.serie || serie}`, 26, 58);
 
-            // Resumo das Notas dos Bimestres (Formatado limpo sem sobreposições)
+            // Resumo das Notas dos Bimestres
             let resumoNotas = [];
             for (const [bName, notaVal] of Object.entries(item.notas)) {
               resumoNotas.push(`${bName}: ${notaVal.toFixed(2).replace('.', ',')}`);
@@ -346,14 +343,26 @@
               doc.text("Notas: " + resumoNotas.join("  |  "), 14, 67, { maxWidth: 140 });
             }
 
-            // Rodapé organizado (Garantindo que Y=285 fique distante do texto principal e sem sobrepor a numeração)
+            // Rodapé organizado (Y = 285)
             doc.setFontSize(8); doc.setFont("helvetica", "italic");
             doc.text(`Aluno: ${item.aluno.nome}  |  Gerado em: ${dataGeracaoStr}`, 14, 285);
             doc.text(`Página ${numPaginaAluno} de 2`, 196, 285, {align: 'right'});
           }
 
+          // Função para desenhar assinaturas próximo ao rodapé (Y = 265) - APENAS NA PÁGINA 2
+          function desenharAssinaturasPagina2() {
+            let finalY = 265;
+            doc.setLineWidth(0.3);
+            doc.line(20, finalY, 90, finalY);
+            doc.setFontSize(9); doc.setFont("helvetica", "bold");
+            doc.text("Assinatura do Responsável", 55, finalY + 5, {align: 'center'});
+
+            doc.line(120, finalY, 190, finalY);
+            doc.text("Assinatura Professor / Gestão", 155, finalY + 5, {align: 'center'});
+          }
+
           // --- PÁGINA 1 DO ALUNO ---
-          await desenharEstruturaPagina(1);
+          await desenharCabecalhoRodapePagina(1);
 
           let linhasOco = item.ocorrencias.map(o => [
             formatarDataCurta(o.data),
@@ -364,43 +373,44 @@
             o.obs || '-'
           ]);
 
+          // Gerar tabela preenchendo a Página 1 por completo
           doc.autoTable({
             startY: 75,
             head: [['Data', 'Série', 'Ocorrência', 'Gravidade', 'Professor', 'Observações']],
             body: linhasOco,
             headStyles: { fillColor: [15, 118, 110] },
             styles: { fontSize: 8 },
-            columnStyles: { 2: { cellWidth: 45 }, 5: { cellWidth: 35 } }
+            columnStyles: { 2: { cellWidth: 45 }, 5: { cellWidth: 35 } },
+            // Permite que o autoTable flua naturalmente preenchendo a página 1 e transbordando para a página 2 se necessário
           });
 
-          // Bloco de Assinaturas na Página 1
-          let finalY = 225;
-          doc.setLineWidth(0.3);
-          doc.line(20, finalY, 90, finalY);
-          doc.setFontSize(9); doc.setFont("helvetica", "bold");
-          doc.text("Assinatura do Responsável", 55, finalY + 5, {align: 'center'});
+          // Verificar se o autoTable gerou uma página 2 automática devido ao excesso
+          let paginaAtualFinal = doc.internal.getCurrentPageInfo().pageNumber;
+          let paginaInicioAluno = i * 2 + 1;
+          let totalPaginasAlunoUsadas = paginaAtualFinal - paginaInicioAluno + 1;
 
-          doc.line(120, finalY, 190, finalY);
-          doc.text("Assinatura Professor / Gestão", 155, finalY + 5, {align: 'center'});
+          if (totalPaginasAlunoUsadas === 1) {
+            // Se coube tudo na Página 1, adicionamos manualmente a Página 2 em branco com o título e as assinaturas
+            await desenharCabecalhoRodapePagina(2);
 
-          // --- PÁGINA 2 DO ALUNO (Sempre gerada em branco para frente e verso) ---
-          await desenharEstruturaPagina(2);
+            doc.setFontSize(10); doc.setFont("helvetica", "bold");
+            doc.text("REGISTROS COMPLEMENTARES E PARECER DA GESTÃO", 14, 85);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(9);
+            doc.text("Espaço reservado para anotações pedagógicas complementares ou termos de compromisso.", 14, 92);
 
-          doc.setFontSize(10); doc.setFont("helvetica", "bold");
-          doc.text("REGISTROS COMPLEMENTARES E PARECER DA GESTÃO", 14, 85);
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(9);
-          doc.text("Espaço reservado para anotações pedagógicas complementares ou termos de compromisso.", 14, 92);
-
-          // Bloco de Assinaturas na Página 2 em Branco
-          let finalY2 = 225;
-          doc.setLineWidth(0.3);
-          doc.line(20, finalY2, 90, finalY2);
-          doc.setFontSize(9); doc.setFont("helvetica", "bold");
-          doc.text("Assinatura do Responsável", 55, finalY2 + 5, {align: 'center'});
-
-          doc.line(120, finalY2, 190, finalY2);
-          doc.text("Assinatura Professor / Gestão", 155, finalY2 + 5, {align: 'center'});
+            desenharAssinaturasPagina2();
+          } else {
+            // Se transbordou para a Página 2 (ex: Expedito), vamos à página 2 gerada pelo autoTable para adicionar o título e as assinaturas no rodapé correto
+            doc.setPage(paginaInicioAluno + 1);
+            
+            // Reajustar o rodapé da página 2 para garantir o padrão correto
+            doc.setFontSize(8); doc.setFont("helvetica", "italic");
+            doc.text(`Aluno: ${item.aluno.nome}  |  Gerado em: ${dataGeracaoStr}`, 14, 285);
+            doc.text(`Página 2 de 2`, 196, 285, {align: 'right'});
+            
+            desenharAssinaturasPagina2();
+          }
         }
 
         doc.save(`Relatorio_Turma_FrenteVerso_${serie.replace(/\s+/g, '_')}.pdf`);
