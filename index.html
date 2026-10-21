@@ -121,6 +121,7 @@
           </div>
         </div>
       </div>
+      
 
       <!-- 2. ELETIVAS -->
       <div class="col-12 col-md-6 col-lg-4">
@@ -198,7 +199,7 @@
             <!-- Atalho para Notas e Registros da Turma -->
            <a href="notas-registros.html" class="sub-link">
            <span><i class="bi bi-search me-2 text-warning"></i>
-           Notas e Registros da Turma</span>
+           Notas Bimestral da Turma</span>
            <i class="bi bi-chevron-right small text-muted"></i>
            </a>
            <a href="relatorio-turma-ocorrencias.html" class="sub-link">
@@ -209,7 +210,17 @@
           </div>
         </div>
       </div>
-
+      
+<!-- Botão Módulo de Reservas -->
+<div class="col-md-4 col-sm-6">
+  <div class="card card-menu h-100 p-4 text-center d-flex flex-column align-items-center justify-content-center shadow-sm border-0" style="border-radius: 12px; cursor: pointer; transition: 0.3s;" onclick="window.location.href='reservas.html'" onmouseover="this.classList.add('shadow')" onmouseout="this.classList.remove('shadow')">
+    <div class="icon-wrapper mb-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; background-color: #e0f2fe; border-radius: 50%;">
+      <i class="bi bi-calendar-check-fill text-primary fs-2"></i>
+    </div>
+    <h5 class="fw-bold text-dark mb-1">Reservas de Ambientes</h5>
+    <p class="text-muted small m-0">Agende e consulte os ambientes e equipamentos da escola.</p>
+  </div>
+</div>
       <!-- 5. GESTÃO (Funcionários e Acessos) -->
       <div class="col-12 col-md-6 col-lg-4" id="blocoGestao">
         <div class="module-box">
@@ -217,7 +228,7 @@
             <div class="icon-box bg-gestao"><i class="bi bi-person-vcard-fill"></i></div>
             <div>
               <h3 class="module-title">Gestão</h3>
-              <p class="module-desc">Funcionários e Equipa</p>
+              <p class="module-desc">Funcionários e Equipamentos</p>
             </div>
           </div>
           <div>
@@ -245,6 +256,14 @@
         <span><i class="bi bi-box-seam text-info me-2"></i> Ambiente / Material</span>
         <i class="bi bi-chevron-right text-muted"></i>
       </a>
+     
+    <a href="gestao-pdt.html" class="d-flex align-items-center justify-content-between text-decoration-none text-dark p-3 bg-light rounded-3 mb-2 custom-hover">
+      <span><i class="bi bi-person-badge me-2 text-primary"></i>Cadastro PDT</span>
+      <i class="bi bi-arrow-right ms-1"></i>
+    </a>
+  </div>
+  
+</div>
           </div>
         </div>
       </div>
@@ -252,6 +271,7 @@
 
     </div>
   </div>
+  
 
   <footer>
     <strong>&copy; <span id="anoAtual"></span> EEMTI Agostinho Neres Portela.</strong> Todos os direitos reservados.
