@@ -49,13 +49,18 @@
   <nav class="navbar navbar-custom">
     <div class="container-fluid">
       <span class="navbar-brand">
+        
         <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Logo" onerror="this.src='https://placehold.co/100?text=Logo'">
         <div>
           Cadastro de Série
           <div class="sub-text">EEMTI Agostinho Neres</div>
         </div>
       </span>
-      <a href="index.html" class="btn btn-outline-atualizar rounded-pill px-3"><i class="bi bi-arrow-left me-1"></i> Voltar</a>
+      <div class="d-flex align-items-center gap-3">
+        <span class="text-muted fw-semibold small d-none d-md-block" id="nomeUsuarioUi"><i class="bi bi-person-circle me-1"></i>A carregar...</span>
+        <a href="index.html" class="btn btn-outline-secondary btn-sm fw-semibold rounded-pill px-3 shadow-sm" style="border-color: #cbd5e1; color: #334155;">
+        <i class="bi bi-house-door-fill me-1"></i> Início
+        </a>
     </div>
   </nav>
 
@@ -125,7 +130,14 @@
     
     window.onload = carregarDados;
 
-    async function carregarDados() {
+    async function carregarDados() {const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+  if (u) {
+    let nomeProf = u.nome || u.usuario?.nome || u.col1 || "Usuário";
+    const elUser = document.getElementById('nomeUsuarioUi');
+    if (elUser) {
+      elUser.innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeProf}`;
+    }
+  }
       document.getElementById('listaDados').innerHTML = '<tr><td colspan="3" class="text-center text-muted">Carregando dados...</td></tr>';
       const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'SERIE' }) });
       const dados = await res.json();
