@@ -1,81 +1,125 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+  <meta name="theme-color" content="#0f766e">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reservas de Ambientes</title>
+  <title>Reservas de Ambientes - EEMTI</title>
+  
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
   <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; }
-    .navbar { background-color: #fff; border-bottom: 1px solid #dee2e6; }
-    .card { border: none; border-radius: 10px; box-shadow: 0 2px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
-    .btn-tema { background-color: #0f766e; color: white; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
+    
+    /* Padronização do Cabeçalho igual ao RAC */
+    .navbar-custom { background-color: transparent; padding: 15px 20px; border-bottom: 1px solid rgba(0,0,0,0.05); }
+    .navbar-brand { font-weight: 700; font-size: 1.5rem; color: #1e293b !important; display: flex; align-items: center; gap: 15px; }
+    .sub-text { font-size: 0.8rem; font-weight: 500; color: #64748b; margin-top: -3px; }
+    .logo-escola { height: 55px; object-fit: contain; mix-blend-mode: multiply; }
+    
+    .main-container { padding: 30px 15px; max-width: 1200px; margin: 0 auto; width: 100%; flex: 1; }
+    .card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); background: #fff; margin-bottom: 25px; }
+    .card-header-custom { border-bottom: 1px solid #eaeaea; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .btn-tema { background-color: #0f766e; color: white; border: none; transition: 0.2s; font-weight: 600; }
     .btn-tema:hover { background-color: #0d645e; color: white; }
-    .aula-checkbox { width: 100px; }
+    .form-label { font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 5px; }
+    .form-control, .form-select { border-color: #e2e8f0; border-radius: 6px; padding: 10px 15px; font-size: 0.95rem; }
+    .form-control:focus, .form-select:focus { border-color: #0f766e; box-shadow: 0 0 0 0.2rem rgba(15, 118, 110, 0.15); }
+    .table th { background-color: #f8fafc; color: #475569; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; }
+    .table td { vertical-align: middle; font-size: 0.95rem; color: #334155; border-bottom: 1px solid #f1f5f9; }
+    .aula-box { width: 100px; transition: 0.2s; cursor: pointer; border: 1px solid #e2e8f0; }
+    .aula-box:hover:not(.disabled) { border-color: #0f766e; background-color: #f0fdfa !important; }
+    .aula-box.disabled { opacity: 0.6; cursor: not-allowed; border-color: #fca5a5; }
   </style>
+
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) window.location.href = 'login.html';
+    
+    const nomeUsuario = usuarioLogado.nome || usuarioLogado.usuario?.nome || "";
+    const perfilUser = (usuarioLogado.permissao || usuarioLogado.usuario?.role || "").toUpperCase();
+    const isGestor = (perfilUser === 'ADMINISTRADOR' || perfilUser === 'DIREÇÃO' || perfilUser === 'GESTÃO');
+  </script>
 </head>
 <body>
 
-  <nav class="navbar p-3">
-    <div class="container-fluid max-w-900 mx-auto">
-      <span class="navbar-brand fw-bold text-teal"><i class="bi bi-calendar-check me-2"></i>Reservas de Ambientes</span>
-      <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill fw-bold">Voltar</a>
+  <nav class="navbar navbar-custom bg-white">
+    <div class="container-fluid max-w-1200 mx-auto">
+      <span class="navbar-brand">
+        <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão">
+        <div>Reservas de Ambientes<div class="sub-text">EEMTI Agostinho Neres</div></div>
+      </span>
+      <div class="d-flex align-items-center gap-3">
+        <span class="text-muted fw-semibold small d-none d-md-block" id="nomeUsuarioUi"><i class="bi bi-person-circle me-1"></i>A carregar...</span>
+        <button class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold" onclick="pedirDataPDF()"><i class="bi bi-file-pdf-fill me-1"></i> Relatório PDF</button>
+        <a href="index.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold"><i class="bi bi-house-door-fill me-1"></i> Início</a>
+      </div>
     </div>
   </nav>
 
-  <div class="container mt-4" style="max-width: 900px;">
+  <div class="main-container">
     <!-- Formulário -->
     <div class="card p-4">
-      <h5 class="fw-bold mb-3" id="tituloForm"><i class="bi bi-plus-circle text-primary me-2"></i>Nova Reserva</h5>
+      <div class="card-header-custom">
+        <h4 id="tituloForm" class="m-0 fs-5 fw-bold text-dark"><i class="bi bi-plus-circle-fill text-primary me-2"></i>Nova Reserva</h4>
+        <button id="btnCancelar" class="btn btn-sm btn-outline-danger d-none" onclick="cancelarEdicao()">Cancelar Edição</button>
+      </div>
       
       <input type="hidden" id="editLinha" value="">
       <input type="hidden" id="editId" value="">
 
-      <div class="row g-3 mb-3">
+      <div class="row g-3 mb-4">
         <div class="col-md-4">
-          <label class="form-label fw-bold">Data da Reserva</label>
-          <input type="date" id="inputData" class="form-control">
+          <label class="form-label">Data da Reserva</label>
+          <input type="date" id="inputData" class="form-control" onchange="verificarDisponibilidade()">
         </div>
         <div class="col-md-4">
-          <label class="form-label fw-bold">Ambiente / Material</label>
-          <select id="selectAmbiente" class="form-select"><option>A carregar...</option></select>
+          <label class="form-label">Ambiente / Material</label>
+          <select id="selectAmbiente" class="form-select" onchange="verificarDisponibilidade()"><option value="">Selecione...</option></select>
         </div>
         <div class="col-md-4">
-          <label class="form-label fw-bold">Professor / Gestão</label>
-          <select id="selectProfessor" class="form-select"><option>A carregar...</option></select>
+          <label class="form-label">Professor Solicitante</label>
+          <select id="selectProfessor" class="form-select"><option value="">A carregar...</option></select>
         </div>
       </div>
 
-      <label class="form-label fw-bold mb-2">Selecione as Aulas:</label>
-      <div class="d-flex flex-wrap gap-2 mb-4" id="containerAulas">
-        <!-- Checkboxes gerados dinamicamente -->
-      </div>
+      <label class="form-label mb-2">Selecione as Aulas Disponíveis:</label>
+      <div class="d-flex flex-wrap gap-2 mb-4" id="containerAulas"></div>
 
-      <div class="d-flex justify-content-end gap-2">
-        <button id="btnCancelar" class="btn btn-outline-danger d-none" onclick="cancelarEdicao()">Cancelar Edição</button>
-        <button class="btn btn-tema px-4" onclick="salvarReserva()"><i class="bi bi-check2-circle me-1"></i>Salvar Reserva</button>
-      </div>
+      <button class="btn btn-tema w-100 py-2" onclick="salvarReserva()"><i class="bi bi-check-lg me-1"></i> Confirmar Reserva</button>
     </div>
 
     <!-- Tabela -->
     <div class="card p-4">
-      <h5 class="fw-bold mb-3"><i class="bi bi-table text-success me-2"></i>Reservas Registadas</h5>
+      <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+        <h5 class="fw-bold text-dark m-0"><i class="bi bi-list-task me-2 text-success"></i>Minhas Reservas Ativas</h5>
+        <div class="d-flex gap-2 align-items-center">
+          <label class="small fw-bold text-muted text-nowrap">Data:</label>
+          <input type="date" id="filtroData" class="form-control form-control-sm" onchange="renderizarTabela()">
+          <button class="btn btn-sm btn-light border" onclick="document.getElementById('filtroData').value=''; renderizarTabela()" title="Limpar"><i class="bi bi-x"></i></button>
+        </div>
+      </div>
+      
       <div class="table-responsive">
         <table class="table table-hover align-middle">
-          <thead class="table-light">
+          <thead>
             <tr>
               <th>Data</th>
-              <th>Professor</th>
               <th>Ambiente</th>
-              <th>Aulas Reservadas</th>
-              <th class="text-end">Ações</th>
+              <th>Aulas</th>
+              <th>Professor</th>
+              <th class="text-end" style="width: 100px;">Ações</th>
             </tr>
           </thead>
           <tbody id="tabelaBody">
-            <tr><td colspan="5" class="text-center py-4">A carregar...</td></tr>
+            <tr><td colspan="5" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div>A carregar dados...</td></tr>
           </tbody>
         </table>
       </div>
@@ -83,160 +127,372 @@
   </div>
 
   <script>
-    // ⚠️ COLOQUE O SEU LINK AQUI:
+    // ⚠️ COLOQUE O SEU LINK DA API AQUI:
     const API_URL = "https://script.google.com/macros/s/AKfycbyNedpZQsNt5lzHtrCSRfC4bWFEuCHHkZ4ygbm-DDm0NUBVARwS5GNFMu2zB3WutFE/exec";
-    let listaReservas = [];
+    
+    let listaReservasTotal = [];
+    let listaAmbientes = []; 
 
     window.onload = async () => {
+      document.getElementById('nomeUsuarioUi').innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeUsuario}`;
+      
       gerarCheckboxes();
       await carregarDropdowns();
-      await atualizarTabela();
+      await carregarReservas();
     };
 
-    function gerarCheckboxes() {
-      let html = "";
-      for(let i=1; i<=9; i++) {
-        html += `
-          <div class="form-check aula-checkbox border rounded p-2 text-center bg-light">
-            <input class="form-check-input float-none ms-0 mb-1 aula-chk" type="checkbox" value="${i}ª Aula" id="aula${i}">
-            <label class="form-check-label d-block text-muted small fw-bold" for="aula${i}">${i}ª Aula</label>
-          </div>`;
-      }
-      document.getElementById('containerAulas').innerHTML = html;
-    }
-
     async function fetchAPI(payload) {
-      const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
-      return await res.json();
+      try {
+        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
+        return await res.json();
+      } catch (e) {
+        return { success: false, error: "Erro de comunicação." };
+      }
     }
 
-    async function carregarDropdowns() {
-      // Puxa Ambientes (Aba AMBIENTE/MATERIAL)
-      const resAmb = await fetchAPI({ action: 'listarConfig', tipo: 'AMBIENTE' });
-      let htmlAmb = '<option value="">Selecione...</option>';
-      if(resAmb.success) resAmb.lista.forEach(i => htmlAmb += `<option value="${i.col1}">${i.col1}</option>`);
-      document.getElementById('selectAmbiente').innerHTML = htmlAmb;
-
-      // Puxa Professores
-      const resProf = await fetchAPI({ action: 'getProfessores' });
-      let htmlProf = '<option value="">Selecione...</option>';
-      if(Array.isArray(resProf)) resProf.forEach(p => htmlProf += `<option value="${p}">${p}</option>`);
-      document.getElementById('selectProfessor').innerHTML = htmlProf;
-    }
-
-    // Formata Data de yyyy-mm-dd para dd/mm/yyyy
     function formatarDataBR(dataIso) {
       if(!dataIso) return "";
       const p = dataIso.split('-');
       return `${p[2]}/${p[1]}/${p[0]}`;
     }
 
-    // Converte de dd/mm/yyyy para yyyy-mm-dd para o input type="date"
     function formatarDataInput(dataBr) {
       if(!dataBr || !dataBr.includes('/')) return dataBr;
       const p = dataBr.split('/');
       return `${p[2]}-${p[1]}-${p[0]}`;
     }
 
-    async function atualizarTabela() {
-      const res = await fetchAPI({ action: 'listarReservas' });
-      if(res.success) {
-        listaReservas = res.lista || [];
-        let html = '';
-        listaReservas.forEach((item, index) => {
-          if(item.linha === 1) return; // ignora cabeçalho
-          let aulasTexto = item.aulas.filter(a => a !== "").join(", ");
-          html += `
-            <tr>
-              <td class="fw-bold">${item.data}</td>
-              <td>${item.professor}</td>
-              <td>${item.ambiente}</td>
-              <td class="small">${aulasTexto}</td>
-              <td class="text-end">
-                <button class="btn btn-sm btn-outline-primary" onclick="editar(${index})"><i class="bi bi-pencil"></i></button>
-                <button class="btn btn-sm btn-outline-danger" onclick="excluir(${item.linha})"><i class="bi bi-trash"></i></button>
-              </td>
-            </tr>`;
-        });
-        document.getElementById('tabelaBody').innerHTML = html || '<tr><td colspan="5" class="text-center">Nenhuma reserva.</td></tr>';
+    function gerarCheckboxes() {
+      let html = "";
+      for(let i=1; i<=9; i++) {
+        html += `
+          <div class="form-check aula-box rounded p-2 text-center bg-light" id="boxAula${i}">
+            <input class="form-check-input float-none ms-0 mb-1" type="checkbox" value="${i}ª Aula" id="aula${i}">
+            <label class="form-check-label d-block text-muted small fw-bold" for="aula${i}">${i}ª Aula</label>
+          </div>`;
       }
+      document.getElementById('containerAulas').innerHTML = html;
+    }
+
+    async function carregarDropdowns() {
+      const resAmb = await fetchAPI({ action: 'listarConfig', tipo: 'AMBIENTE' });
+      let htmlAmb = '<option value="">Selecione...</option>';
+      if(resAmb.success || resAmb.sucesso) {
+        listaAmbientes = resAmb.lista.map(i => i.col1).filter(Boolean);
+        listaAmbientes.forEach(amb => htmlAmb += `<option value="${amb}">${amb}</option>`);
+      }
+      document.getElementById('selectAmbiente').innerHTML = htmlAmb;
+
+      const selProf = document.getElementById('selectProfessor');
+      
+      if (isGestor) {
+        const resProf = await fetchAPI({ action: 'getProfessores' });
+        let htmlProf = `<option value="${nomeUsuario}">${nomeUsuario}</option>`;
+        if(Array.isArray(resProf)) {
+          resProf.forEach(p => { 
+            if(p.toUpperCase() !== nomeUsuario.toUpperCase()) htmlProf += `<option value="${p}">${p}</option>`; 
+          });
+        }
+        selProf.innerHTML = htmlProf;
+        selProf.disabled = false;
+      } else {
+        selProf.innerHTML = `<option value="${nomeUsuario}">${nomeUsuario}</option>`;
+        selProf.value = nomeUsuario;
+        selProf.disabled = true; 
+      }
+    }
+
+    async function carregarReservas() {
+      const res = await fetchAPI({ action: 'listarReservas' });
+      if(res.success || res.sucesso) {
+        listaReservasTotal = res.lista || [];
+        renderizarTabela();
+        verificarDisponibilidade();
+      }
+    }
+
+    function verificarDisponibilidade() {
+      const dataInput = document.getElementById('inputData').value;
+      const ambiente = document.getElementById('selectAmbiente').value;
+      const idEditando = document.getElementById('editId').value;
+      
+      for(let i=1; i<=9; i++) {
+        let chk = document.getElementById('aula'+i);
+        let box = document.getElementById('boxAula'+i);
+        chk.disabled = false;
+        box.classList.remove('bg-danger', 'text-white', 'disabled');
+        box.classList.add('bg-light');
+        box.title = "Disponível";
+      }
+
+      if(!dataInput || !ambiente) return;
+      const dataBr = formatarDataBR(dataInput);
+
+      const bloqueios = listaReservasTotal.filter(r => r.data === dataBr && r.ambiente === ambiente && r.id !== idEditando);
+
+      bloqueios.forEach(res => {
+        res.aulas.forEach((aulaDesc, idx) => {
+          if(aulaDesc !== "") {
+            let chk = document.getElementById('aula'+(idx+1));
+            let box = document.getElementById('boxAula'+(idx+1));
+            chk.checked = false;
+            chk.disabled = true;
+            box.classList.remove('bg-light');
+            box.classList.add('bg-danger', 'text-white', 'disabled');
+            box.title = `Reservado por ${res.professor}`;
+          }
+        });
+      });
+    }
+
+    function renderizarTabela() {
+      const filtroData = document.getElementById('filtroData').value;
+      const dataBrFiltro = formatarDataBR(filtroData);
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      
+      let html = '';
+      let encontrou = false;
+
+      let listaOrdenada = [...listaReservasTotal].sort((a, b) => {
+         if(!a.data || !b.data) return 0;
+         let pA = a.data.split('/'); let dA = new Date(pA[2], pA[1]-1, pA[0]);
+         let pB = b.data.split('/'); let dB = new Date(pB[2], pB[1]-1, pB[0]);
+         return dA - dB;
+      });
+
+      listaOrdenada.forEach((item) => {
+        if(item.linha === 1 || !item.data) return; 
+        
+        let pData = item.data.split('/');
+        let dataReserva = new Date(pData[2], pData[1]-1, pData[0]);
+        
+        if(dataReserva < hoje) return; 
+        if(dataBrFiltro && item.data !== dataBrFiltro) return;
+
+        let isDono = (item.professor.toUpperCase() === nomeUsuario.toUpperCase());
+        if(!isDono && !isGestor) return; 
+
+        encontrou = true;
+        let aulasTexto = item.aulas.filter(a => a !== "").join(", ");
+        
+        html += `
+          <tr>
+            <td class="fw-bold text-dark">${item.data}</td>
+            <td>${item.ambiente}</td>
+            <td class="small fw-semibold text-primary">${aulasTexto}</td>
+            <td>${item.professor}</td>
+            <td class="text-end">
+              <button class="btn btn-sm btn-light border text-primary me-1" onclick="editarReserva(${item.linha})" title="Editar"><i class="bi bi-pencil-fill"></i></button>
+              <button class="btn btn-sm btn-light border text-danger" onclick="excluir(${item.linha})" title="Excluir"><i class="bi bi-trash-fill"></i></button>
+            </td>
+          </tr>`;
+      });
+      document.getElementById('tabelaBody').innerHTML = encontrou ? html : '<tr><td colspan="5" class="text-center text-muted py-4">Nenhuma reserva futura encontrada.</td></tr>';
     }
 
     async function salvarReserva() {
       const dataIso = document.getElementById('inputData').value;
       const ambiente = document.getElementById('selectAmbiente').value;
       const professor = document.getElementById('selectProfessor').value;
+      const editId = document.getElementById('editId').value;
       
-      if(!dataIso || !ambiente || !professor) return Swal.fire('Aviso', 'Preencha Data, Ambiente e Professor.', 'warning');
+      if(!dataIso || !ambiente || !professor) return Swal.fire('Atenção', 'Preencha a Data, o Ambiente e o Professor.', 'warning');
       
+      const dataBr = formatarDataBR(dataIso);
+
+      // --- NOVA REGRA: Evitar múltiplas linhas do mesmo professor no mesmo dia/ambiente ---
+      if (!editId) { // Só verifica se for uma NOVA reserva (se o editId estiver vazio)
+        const reservaExistente = listaReservasTotal.find(r => r.data === dataBr && r.ambiente === ambiente && r.professor.toUpperCase() === professor.toUpperCase());
+        
+        if (reservaExistente) {
+          return Swal.fire({
+            icon: 'info',
+            title: 'Reserva já existente!',
+            text: 'Você já possui uma reserva para este ambiente nesta data. Por favor, desça até a tabela de "Minhas Reservas Ativas" e clique no botão de editar (lápis azul) para adicionar ou remover aulas.',
+            confirmButtonText: 'Entendi'
+          });
+        }
+      }
+      // -----------------------------------------------------------------------------------
+
       let aulasArr = [];
       let temAula = false;
       for(let i=1; i<=9; i++) {
         let chk = document.getElementById('aula'+i);
-        if(chk.checked) { aulasArr.push(chk.value); temAula = true; }
+        if(chk.checked && !chk.disabled) { aulasArr.push(chk.value); temAula = true; }
         else { aulasArr.push(""); }
       }
 
-      if(!temAula) return Swal.fire('Aviso', 'Selecione pelo menos uma aula.', 'warning');
+      if(!temAula) return Swal.fire('Atenção', 'Selecione pelo menos uma aula disponível.', 'warning');
 
-      Swal.fire({title: 'Validando...', didOpen: () => Swal.showLoading()});
+      Swal.fire({title: 'A guardar...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
       const payload = {
         action: 'salvarReserva',
         linha: parseInt(document.getElementById('editLinha').value) || null,
-        id: document.getElementById('editId').value || null,
-        data: formatarDataBR(dataIso),
+        id: editId || null,
+        data: dataBr,
         ambiente: ambiente,
         professor: professor,
         aulas: aulasArr
       };
 
       const res = await fetchAPI(payload);
-      if(res.success) {
-        Swal.fire('Sucesso', 'Reserva efetuada com sucesso!', 'success');
+      if(res.success || res.sucesso) {
+        Swal.fire('Sucesso!', 'Reserva efetuada com sucesso.', 'success');
         cancelarEdicao();
-        atualizarTabela();
+        await carregarReservas();
       } else {
-        Swal.fire('Conflito de Horário', res.error, 'error');
+        Swal.fire('Conflito', res.error || 'Esta aula já foi reservada por outra pessoa.', 'error');
+        await carregarReservas(); 
       }
     }
+    function editarReserva(linha) {
+      const item = listaReservasTotal.find(r => r.linha === linha);
+      if(!item) return;
 
-    function editar(index) {
-      const item = listaReservas[index];
       document.getElementById('inputData').value = formatarDataInput(item.data);
       document.getElementById('selectAmbiente').value = item.ambiente;
-      document.getElementById('selectProfessor').value = item.professor;
+      
+      if (isGestor) {
+        document.getElementById('selectProfessor').value = item.professor;
+      }
+      
       document.getElementById('editLinha').value = item.linha;
       document.getElementById('editId').value = item.id;
       
+      verificarDisponibilidade();
+
       for(let i=1; i<=9; i++) {
-        document.getElementById('aula'+i).checked = item.aulas.includes(i+"ª Aula");
+        let chk = document.getElementById('aula'+i);
+        if(!chk.disabled) {
+           chk.checked = item.aulas.includes(i+"ª Aula");
+        }
       }
 
-      document.getElementById('tituloForm').innerHTML = "Editar Reserva";
+      document.getElementById('tituloForm').innerHTML = `<i class="bi bi-pencil-square text-warning me-2"></i>Editar Reserva`;
       document.getElementById('btnCancelar').classList.remove('d-none');
-      window.scrollTo(0,0);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function cancelarEdicao() {
       document.getElementById('inputData').value = "";
       document.getElementById('selectAmbiente').value = "";
-      document.getElementById('selectProfessor').value = "";
+      if (isGestor) {
+        document.getElementById('selectProfessor').value = nomeUsuario; 
+      }
       document.getElementById('editLinha').value = "";
       document.getElementById('editId').value = "";
-      for(let i=1; i<=9; i++) document.getElementById('aula'+i).checked = false;
       
-      document.getElementById('tituloForm').innerHTML = "Nova Reserva";
+      document.getElementById('tituloForm').innerHTML = `<i class="bi bi-plus-circle-fill text-primary me-2"></i>Nova Reserva`;
       document.getElementById('btnCancelar').classList.add('d-none');
+      verificarDisponibilidade(); 
     }
 
     async function excluir(linha) {
-      if(await Swal.fire({title: 'Excluir reserva?', icon: 'warning', showCancelButton: true}).then(r => r.isConfirmed)) {
-        Swal.fire({title: 'Excluindo...', didOpen: () => Swal.showLoading()});
+      const conf = await Swal.fire({title: 'Cancelar Reserva?', text: "As aulas selecionadas ficarão livres novamente.", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Sim, cancelar', cancelButtonText: 'Não'});
+      if(conf.isConfirmed) {
+        Swal.fire({title: 'A cancelar...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
         await fetchAPI({ action: 'excluirReserva', linha: linha });
-        Swal.fire('Excluído', '', 'success');
-        atualizarTabela();
+        Swal.fire('Cancelada!', 'A reserva foi removida.', 'success');
+        await carregarReservas();
       }
+    }
+
+    // ==========================================
+    // GERAÇÃO DO RELATÓRIO PDF POR DATA
+    // ==========================================
+    async function pedirDataPDF() {
+      const { value: dataEscolhida } = await Swal.fire({
+        title: 'Gerar Relatório de Reservas',
+        input: 'date',
+        inputLabel: 'Selecione a data para o relatório:',
+        showCancelButton: true,
+        confirmButtonText: 'Gerar PDF',
+        cancelButtonText: 'Cancelar'
+      });
+
+      if (dataEscolhida) {
+        gerarRelatorioPDF(formatarDataBR(dataEscolhida));
+      }
+    }
+
+    function gerarRelatorioPDF(dataBr) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('landscape'); 
+      
+      // Tenta pegar o Brasão da página e colocar no PDF
+      try {
+        const imgElement = document.querySelector('.logo-escola');
+        if(imgElement) {
+          const canvas = document.createElement('canvas');
+          canvas.width = imgElement.naturalWidth || 500; 
+          canvas.height = imgElement.naturalHeight || 500;
+          canvas.getContext('2d').drawImage(imgElement, 0, 0);
+          doc.addImage(canvas.toDataURL('image/png'), 'PNG', 14, 10, 25, 25);
+        }
+      } catch (e) {}
+
+      // Textos do Cabeçalho Padrão
+      doc.setFontSize(11); doc.setFont("helvetica", "bold");
+      doc.text("ESCOLA DE ENSINO MÉDIO DE TEMPO INTEGRAL", 45, 17);
+      doc.setFontSize(14); doc.text("AGOSTINHO NERES PORTELA", 45, 24);
+      doc.setFontSize(10); doc.setFont("helvetica", "normal");
+      doc.text("Relatório de Reservas de Ambientes", 45, 30);
+      
+      doc.setLineWidth(0.5); doc.line(14, 37, 283, 37);
+
+      doc.setFontSize(11); doc.setFont("helvetica", "bold");
+      doc.text(`Data das Reservas: ${dataBr}`, 14, 45);
+
+      const tableColumn = ["Ambiente", "1ª Aula", "2ª Aula", "3ª Aula", "4ª Aula", "5ª Aula", "6ª Aula", "7ª Aula", "8ª Aula", "9ª Aula"];
+      const tableRows = [];
+      const reservasDaData = listaReservasTotal.filter(r => r.data === dataBr);
+
+      listaAmbientes.forEach(ambiente => {
+        let rowData = [ambiente, "", "", "", "", "", "", "", "", ""];
+        let resAmbiente = reservasDaData.filter(r => r.ambiente === ambiente);
+        
+        resAmbiente.forEach(res => {
+          res.aulas.forEach((aulaDesc, idx) => {
+            if(aulaDesc !== "") {
+              rowData[idx + 1] = res.professor; 
+            }
+          });
+        });
+        
+        tableRows.push(rowData);
+      });
+
+      doc.autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        startY: 50,
+        theme: 'grid',
+        styles: { 
+          fontSize: 7, 
+          halign: 'center', 
+          valign: 'middle', 
+          cellPadding: 2,
+          overflow: 'linebreak' // Quebra o texto se for maior que a coluna
+        },
+        headStyles: { fillColor: [15, 118, 110] }, 
+        columnStyles: {
+          0: { halign: 'left', fontStyle: 'bold', cellWidth: 35 }, // Coluna Ambiente maior
+          1: { cellWidth: 26 }, // Tamanho fixo para as aulas
+          2: { cellWidth: 26 },
+          3: { cellWidth: 26 },
+          4: { cellWidth: 26 },
+          5: { cellWidth: 26 },
+          6: { cellWidth: 26 },
+          7: { cellWidth: 26 },
+          8: { cellWidth: 26 },
+          9: { cellWidth: 26 }
+        }
+      });
+
+      doc.save(`Reservas_Ambientes_${dataBr.replace(/\//g, '-')}.pdf`);
     }
   </script>
 </body>
