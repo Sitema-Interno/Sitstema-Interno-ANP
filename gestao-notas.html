@@ -62,9 +62,9 @@
         </div>
       </span>
       <div class="d-flex align-items-center gap-3">
-        
+        <span class="text-muted fw-semibold small d-none d-md-block" id="nomeUsuarioUi"><i class="bi bi-person-circle me-1"></i>A carregar...</span>
         <a href="index.html" class="btn btn-outline-secondary btn-sm fw-semibold rounded-pill px-3 shadow-sm" style="border-color: #cbd5e1; color: #334155;">
-          <i class="bi bi-house-door-fill me-1"></i> Início
+        <i class="bi bi-house-door-fill me-1"></i> Início
         </a>
       </div>
     </div>
@@ -138,7 +138,14 @@
       }
     }
 
-    window.onload = async function() {
+    window.onload = async function() {const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+  if (u) {
+    let nomeProf = u.nome || u.usuario?.nome || u.col1 || "Usuário";
+    const elUser = document.getElementById('nomeUsuarioUi');
+    if (elUser) {
+      elUser.innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeProf}`;
+    }
+  }
       await carregarAnos();
     };
 
