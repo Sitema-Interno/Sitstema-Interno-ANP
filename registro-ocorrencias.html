@@ -1,465 +1,584 @@
 <!DOCTYPE html>
 <html lang="pt-PT">
 <head>
-    <meta name="theme-color" content="#0f766e">
-<link rel="manifest" href="manifest.json">
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#0f766e">
-<title>Registro de Ocorrências (RAC)</title>
-<link rel="manifest" href="manifest.json">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-<style>
-@import url('https://fonts.googleapis.com/css?family=Inter:wght@400;500;600;700&display=swap');
-body {font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh;}
-.watermark-bg { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 50vw; max-width: 550px; opacity: 0.08; z-index: -1; pointer-events: none;}
-.navbar-custom {background-color: transparent; padding: 15px 20px; border-bottom: 1px solid rgba(0,0,0,0.05); }
-.navbar-brand {font-weight: 700; font-size: 1.5rem; color: #1e293b !important; display: flex; align-items: center; gap: 15px; }
-.sub-text { font-size: 0.8rem; font-weight: 500; color: #64748b; margin-top: -3px; }
-.logo-escola { height: 55px; object-fit: contain; mix-blend-mode: multiply; }
-.main-container { padding: 40px 15px; max-width: 1200px; margin: 0 auto; width: 100%; flex: 1; }
-.card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 30px; background: rgba(255, 255, 255, 0.95); }
-.card-header-custom { border-bottom: 1px solid #eaeaea; padding-bottom: 15px; margin-bottom: 20px; }
-.btn-primary { background-color: #0f766e; border: none; }
-.btn-primary:hover { background-color: #0d645e; }
-.foto-preview { width: 120px; height: 150px; object-fit: cover; border-radius: 8px; border: 2px solid #e2e8f0; background: #f8fafc; display: flex; align-items: center; justify-content: center; color: #94a3b8; overflow: hidden; }
-</style>
-<script>
-const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
-if (!usuarioLogado) window.location.href = 'login.html';
-const nomeUser = usuarioLogado.nome || usuarioLogado.usuario?.nome || "";
-const perfilUser = (usuarioLogado.permissao || usuarioLogado.usuario?.role || "").toUpperCase();
-const isGestor = (perfilUser === 'ADMINISTRADOR' || perfilUser === 'DIREÇÃO');
-</script>
+  <meta name="theme-color" content="#0f766e">
+  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registro de Ocorrências (RAC)</title>
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
+    .watermark-bg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50vw; max-width: 550px; opacity: 0.08; z-index: -1; pointer-events: none; }
+    .navbar-custom { background-color: transparent; padding: 15px 20px; border-bottom: 1px solid rgba(0,0,0,0.05); }
+    .navbar-brand { font-weight: 700; font-size: 1.5rem; color: #1e293b !important; display: flex; align-items: center; gap: 15px; }
+    .sub-text { font-size: 0.8rem; font-weight: 500; color: #64748b; margin-top: -3px; }
+    .logo-escola { height: 55px; object-fit: contain; mix-blend-mode: multiply; }
+    .main-container { padding: 40px 15px; max-width: 1200px; margin: 0 auto; width: 100%; flex: 1; }
+    .card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 30px; background: rgba(255, 255, 255, 0.95); }
+    .card-header-custom { border-bottom: 1px solid #eaeaea; padding-bottom: 15px; margin-bottom: 20px; }
+    .btn-primary { background-color: #0f766e; border: none; }
+    .btn-primary:hover { background-color: #0d645e; }
+    .foto-preview { width: 120px; height: 150px; object-fit: cover; border-radius: 8px; border: 2px solid #e2e8f0; background: #f8fafc; display: flex; align-items: center; justify-content: center; color: #94a3b8; overflow: hidden; }
+  </style>
+
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) window.location.href = 'login.html';
+    const nomeUser = usuarioLogado.nome || usuarioLogado.usuario?.nome || "";
+    const perfilUser = (usuarioLogado.permissao || usuarioLogado.usuario?.role || "").toUpperCase();
+    const isGestor = (perfilUser === 'ADMINISTRADOR' || perfilUser === 'DIREÇÃO');
+  </script>
 </head>
 <body>
-<img src="LOGO-removebg-preview.png" class="watermark-bg" alt="">
-<nav class="navbar navbar-custom">
-<div class="container-fluid">
-<span class="navbar-brand">
-<img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão">
-<div>Registro de Ocorrências<div class="sub-text">EEMTI Agostinho Neres</div></div>
-</span>
-<div class="d-flex align-items-center gap-3">
-  <span class="text-muted fw-semibold small d-none d-md-block" id="nomeUsuarioUi"><i class="bi bi-person-circle me-1"></i>A carregar...</span>
-<a href="index.html" class="btn btn-outline-secondary btn-sm fw-semibold rounded-pill px-3"><i class="bi bi-house-door-fill me-1"></i> Início</a>
-</div>
-</div>
-</nav>
 
-<div class="main-container">
-<ul class="nav nav-tabs mb-4" id="myTab" role="tablist">
-<li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#lancamento" type="button"><i class="bi bi-exclamation-triangle-fill me-2"></i>Lançar RAC</button></li>
-<li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#gerenciar" type="button"><i class="bi bi-card-list me-2"></i>Consultar / Relatórios</button></li>
-</ul>
+  <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="">
+  
+  <nav class="navbar navbar-custom">
+    <div class="container-fluid">
+      <span class="navbar-brand">
+        <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+        <div>Registro de Ocorrências<div class="sub-text">EEMTI Agostinho Neres</div></div>
+      </span>
+      <div class="d-flex align-items-center gap-3">
+        <span id="badgeOfflinePendentes" class="badge bg-warning text-dark d-none" style="cursor:pointer;" onclick="sincronizarOfflineRAC()" title="Clique para tentar sincronizar agora">
+          <i class="bi bi-cloud-slash-fill me-1"></i><span id="qtdOffline">0</span> pendente(s)
+        </span>
+        <span class="text-muted fw-semibold small d-none d-md-block" id="nomeUsuarioUi"><i class="bi bi-person-circle me-1"></i>A carregar...</span>
+        <a href="index.html" class="btn btn-outline-secondary btn-sm fw-semibold rounded-pill px-3"><i class="bi bi-house-door-fill me-1"></i> Início</a>
+      </div>
+    </div>
+  </nav>
 
-<div class="tab-content">
-<!-- Lançar RAC -->
-<div class="tab-pane fade show active" id="lancamento">
-<div class="card p-4">
-<div class="card-header-custom d-flex justify-content-between align-items-center">
-<h4 class="m-0"><i class="bi bi-person-bounding-box text-primary me-2"></i>Nova Ocorrência</h4>
-<span id="badgeEdicao" class="badge bg-warning text-dark d-none">Modo Edição</span>
-</div>
-<input type="hidden" id="racIdEdit">
-<div class="row g-4">
-<div class="col-md-2 d-flex flex-column align-items-center">
-<div class="foto-preview mb-2" id="boxFoto">
-<i class="bi bi-person-fill" style="font-size: 4rem;"></i>
-</div>
-<span class="badge bg-secondary" id="racSerieBadge">Aguardando Turma</span>
-</div>
-<div class="col-md-10">
-<div class="row g-3">
-<div class="col-md-4">
-<label class="form-label small fw-bold">Data da Ocorrência</label>
-<input type="date" id="racData" class="form-control" required>
-</div>
-<div class="col-md-8">
-<label class="form-label small fw-bold">Professor / Servidor</label>
-<input type="text" id="racProfessor" class="form-control bg-light" readonly>
-</div>
-<div class="col-md-6">
-<label class="form-label small fw-bold">Selecionar Série / Turma</label>
-<select id="racFiltroSerie" class="form-select" onchange="carregarAlunosPorSerie()">
-<option value="">Selecione primeiro a turma...</option>
-</select>
-</div>
-<div class="col-md-6">
-<label class="form-label small fw-bold">Selecionar Aluno</label>
-<select id="racAluno" class="form-select" disabled onchange="aoSelecionarAluno()">
-<option value="">Selecione a turma primeiro...</option>
-</select>
-</div>
-<div class="col-md-12">
-<label class="form-label small fw-bold">Tipo de Ocorrência</label>
-<select id="racOcorrencia" class="form-select" onchange="aoSelecionarOcorrencia()">
-<option value="">Selecione...</option>
-</select>
-</div>
-<div class="col-md-4 mt-3">
-<label class="form-label small fw-bold">Gravidade</label>
-<input type="text" id="racGravidade" class="form-control bg-light fw-bold" readonly placeholder="Automático">
-</div>
-<div class="col-md-8 mt-3">
-<label class="form-label small fw-bold">Observações / Detalhes</label>
-<textarea id="racObs" class="form-control" rows="2" placeholder="Descreva os detalhes adicionais (Opcional)"></textarea>
-</div>
-</div>
-<div class="mt-4 text-end">
-<button class="btn btn-outline-secondary me-2" onclick="limparFormularioRAC()">Cancelar</button>
-<button class="btn btn-primary" id="btnSalvarRAC" onclick="salvarRAC()"><i class="bi bi-save-fill me-2"></i>Registrar Ocorrência</button>
-</div>
-</div>
-</div>
-</div>
-</div>
+  <div class="main-container">
+    <ul class="nav nav-tabs mb-4" id="myTab" role="tablist">
+      <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#lancamento" type="button"><i class="bi bi-exclamation-triangle-fill me-2"></i>Lançar RAC</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#gerenciar" type="button"><i class="bi bi-card-list me-2"></i>Consultar / Relatórios</button></li>
+    </ul>
 
-<!-- Consultar e Relatórios -->
-<div class="tab-pane fade" id="gerenciar">
-<div class="card p-4">
-<div class="card-header-custom d-flex justify-content-between align-items-center">
-<h4 class="m-0"><i class="bi bi-search text-primary me-2"></i>Buscar Registos e Relatórios</h4>
-<button class="btn btn-danger btn-sm" onclick="gerarRelatorioPDF()"><i class="bi bi-file-pdf-fill me-2"></i>Gerar PDF (Aluno Atual)</button>
-</div>
-<div class="row g-3 mb-4">
-<div class="col-md-8">
-<label class="form-label small fw-bold">Filtrar por Aluno</label>
-<input class="form-control" list="listaAlunosBusca" id="buscaAluno" placeholder="Deixe em branco para ver todos">
-<datalist id="listaAlunosBusca"></datalist>
-</div>
-<div class="col-md-4 d-flex align-items-end">
-<button class="btn btn-primary w-100" onclick="buscarRegistosRAC()"><i class="bi bi-search me-2"></i>Pesquisar</button>
-</div>
-</div>
-<div class="table-responsive">
-<table class="table table-hover border">
-<thead class="table-light"><tr><th>Data</th><th>Aluno</th><th>Ocorrência</th><th>Gravidade</th><th>Professor</th><th>Ações</th></tr></thead>
-<tbody id="tabelaGerenciar"><tr><td colspan="6" class="text-center text-muted">Aguardando pesquisa...</td></tr></tbody>
-</table>
-</div>
-</div>
-</div>
-</div>
-</div>
+    <div class="tab-content">
+      <!-- Lançar RAC -->
+      <div class="tab-pane fade show active" id="lancamento">
+        <div class="card p-4">
+          <div class="card-header-custom d-flex justify-content-between align-items-center">
+            <h4 class="m-0"><i class="bi bi-person-bounding-box text-primary me-2"></i>Nova Ocorrência</h4>
+            <span id="badgeEdicao" class="badge bg-warning text-dark d-none">Modo Edição</span>
+          </div>
+          <input type="hidden" id="racIdEdit">
+          <div class="row g-4">
+            <div class="col-md-2 d-flex flex-column align-items-center">
+              <div class="foto-preview mb-2" id="boxFoto">
+                <i class="bi bi-person-fill" style="font-size: 4rem;"></i>
+              </div>
+              <span class="badge bg-secondary" id="racSerieBadge">Aguardando Turma</span>
+            </div>
+            <div class="col-md-10">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold">Data da Ocorrência</label>
+                  <input type="date" id="racData" class="form-control" required>
+                </div>
+                <div class="col-md-8">
+                  <label class="form-label small fw-bold">Professor / Servidor</label>
+                  <input type="text" id="racProfessor" class="form-control bg-light" readonly>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold">Selecionar Série / Turma</label>
+                  <select id="racFiltroSerie" class="form-select" onchange="carregarAlunosPorSerie()">
+                    <option value="">Selecione primeiro a turma...</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold">Selecionar Aluno</label>
+                  <select id="racAluno" class="form-select" disabled onchange="aoSelecionarAluno()">
+                    <option value="">Selecione a turma primeiro...</option>
+                  </select>
+                </div>
+                <div class="col-md-12">
+                  <label class="form-label small fw-bold">Tipo de Ocorrência</label>
+                  <select id="racOcorrencia" class="form-select" onchange="aoSelecionarOcorrencia()">
+                    <option value="">Selecione...</option>
+                  </select>
+                </div>
+                <div class="col-md-4 mt-3">
+                  <label class="form-label small fw-bold">Gravidade</label>
+                  <input type="text" id="racGravidade" class="form-control bg-light fw-bold" readonly placeholder="Automático">
+                </div>
+                <div class="col-md-8 mt-3">
+                  <label class="form-label small fw-bold">Observações / Detalhes</label>
+                  <textarea id="racObs" class="form-control" rows="2" placeholder="Descreva os detalhes adicionais (Opcional)"></textarea>
+                </div>
+              </div>
+              <div class="mt-4 text-end">
+                <button class="btn btn-outline-secondary me-2" onclick="limparFormularioRAC()">Cancelar</button>
+                <button class="btn btn-primary" id="btnSalvarRAC" onclick="salvarRAC()"><i class="bi bi-save-fill me-2"></i>Registrar Ocorrência</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-<script>
-const API_URL = "https://script.google.com/macros/s/AKfycbyNedpZQsNt5lzHtrCSRfC4bWFEuCHHkZ4ygbm-DDm0NUBVARwS5GNFMu2zB3WutFE/exec";
-let dbAlunos = [];
-let dbOcorrencias = [];
+      <!-- Consultar e Relatórios -->
+      <div class="tab-pane fade" id="gerenciar">
+        <div class="card p-4">
+          <div class="card-header-custom d-flex justify-content-between align-items-center">
+            <h4 class="m-0"><i class="bi bi-search text-primary me-2"></i>Buscar Registos e Relatórios</h4>
+            <button class="btn btn-danger btn-sm" onclick="gerarRelatorioPDF()"><i class="bi bi-file-pdf-fill me-2"></i>Gerar PDF (Aluno Atual)</button>
+          </div>
+          <div class="row g-3 mb-4">
+            <div class="col-md-8">
+              <label class="form-label small fw-bold">Filtrar por Aluno</label>
+              <input class="form-control" list="listaAlunosBusca" id="buscaAluno" placeholder="Deixe em branco para ver todos">
+              <datalist id="listaAlunosBusca"></datalist>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+              <button class="btn btn-primary w-100" onclick="buscarRegistosRAC()"><i class="bi bi-search me-2"></i>Pesquisar</button>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover border">
+              <thead class="table-light">
+                <tr><th>Data</th><th>Aluno</th><th>Ocorrência</th><th>Gravidade</th><th>Professor</th><th>Ações</th></tr>
+              </thead>
+              <tbody id="tabelaGerenciar">
+                <tr><td colspan="6" class="text-center text-muted">Aguardando pesquisa...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-document.getElementById('racData').valueAsDate = new Date();
-document.getElementById('racProfessor').value = nomeUser.toUpperCase();
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbyNedpZQsNt5lzHtrCSRfC4bWFEuCHHkZ4ygbm-DDm0NUBVARwS5GNFMu2zB3WutFE/exec";
+    let dbAlunos = [];
+    let dbOcorrencias = [];
+    let sincronizandoAgora = false;
 
-window.onload = async function() {const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
-  if (u) {
-    let nomeProf = u.nome || u.usuario?.nome || u.col1 || "Usuário";
-    const elUser = document.getElementById('nomeUsuarioUi');
-    if (elUser) {
-      elUser.innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeProf}`;
-    }
-  }
-  let dados = null;
+    document.getElementById('racData').valueAsDate = new Date();
+    document.getElementById('racProfessor').value = nomeUser.toUpperCase();
 
-  if (navigator.onLine) {
-    try {
-      const res = await fetch(API_URL + "?v=" + new Date().getTime(), { 
-        method: 'POST', body: JSON.stringify({ action: 'getFiltrosOcorrencias' }) 
-      });
-      
-      dados = await res.json();
-      if (dados && dados.alunos) {
-        localStorage.setItem('cache_alunos_rac', JSON.stringify(dados.alunos));
-        localStorage.setItem('cache_ocorrencias_rac', JSON.stringify(dados.ocorrencias));
+    function atualizarBadgeOffline() {
+      const fila = JSON.parse(localStorage.getItem('filaOffline_RAC') || '[]');
+      const badge = document.getElementById('badgeOfflinePendentes');
+      const qtdSpan = document.getElementById('qtdOffline');
+      if (fila.length > 0) {
+        qtdSpan.innerText = fila.length;
+        badge.classList.remove('d-none');
+      } else {
+        badge.classList.add('d-none');
       }
-    } catch (e) {}
-  }
-
-  if (!dados || !dados.alunos) {
-    const alunosCache = localStorage.getItem('cache_alunos_rac');
-    const ocorrenciasCache = localStorage.getItem('cache_ocorrencias_rac');
-    if (alunosCache && ocorrenciasCache) {
-      dados = { alunos: JSON.parse(alunosCache), ocorrencias: JSON.parse(ocorrenciasCache) };
     }
-  }
 
-  if(dados) {
-    dbAlunos = dados.alunos || [];
-    dbOcorrencias = dados.ocorrencias || [];
-    
-    // Extrai séries únicas ordenadas
-    let seriesSet = new Set();
-    dbAlunos.forEach(a => { if(a.serie) seriesSet.add(a.serie); });
-    let htmlSeries = '<option value="">Selecione a série/turma...</option>';
-    Array.from(seriesSet).sort().forEach(s => htmlSeries += `<option value="${s}">${s}</option>`);
-    document.getElementById('racFiltroSerie').innerHTML = htmlSeries;
-    
-    let htmlBusca = '';
-    dbAlunos.forEach(a => htmlBusca += `<option value="${a.nome}">${a.serie}</option>`);
-    document.getElementById('listaAlunosBusca').innerHTML = htmlBusca;
-    
-    let htmlOc = '<option value="">Selecione a ocorrência...</option>';
-    dbOcorrencias.forEach(o => htmlOc += `<option value="${o.descricao}">${o.descricao}</option>`);
-    document.getElementById('racOcorrencia').innerHTML = htmlOc;
-  }
-};
+    // MOTOR DE SINCRONIZAÇÃO OFFLINE (Idêntico ao de Frequência-Eletivas)
+    async function sincronizarOfflineRAC() {
+      if (sincronizandoAgora) return;
+      let fila = JSON.parse(localStorage.getItem('filaOffline_RAC') || '[]');
+      atualizarBadgeOffline();
+      if (fila.length === 0 || !navigator.onLine) return;
 
-function carregarAlunosPorSerie() {
-  const serieSelecionada = document.getElementById('racFiltroSerie').value;
-  const selAluno = document.getElementById('racAluno');
-  const badgeSerie = document.getElementById('racSerieBadge');
-  
-  limparFotoENome();
-  
-  if(!serieSelecionada) {
-    selAluno.innerHTML = '<option value="">Selecione a turma primeiro...</option>';
-    selAluno.disabled = true;
-    badgeSerie.innerText = "Aguardando Turma";
-    return;
-  }
-  
-  badgeSerie.innerText = serieSelecionada;
-  const alunosFiltrados = dbAlunos.filter(a => a.serie === serieSelecionada);
-  
-  let html = '<option value="">Selecione o aluno...</option>';
-  alunosFiltrados.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(a => {
-    html += `<option value="${a.nome}">${a.nome}</option>`;
-  });
-  
-  selAluno.innerHTML = html;
-  selAluno.disabled = false;
-}
+      sincronizandoAgora = true;
 
-function aoSelecionarAluno() {
-  const nomeAluno = document.getElementById('racAluno').value;
-  const aluno = dbAlunos.find(a => a.nome === nomeAluno);
-  const boxFoto = document.getElementById('boxFoto');
-  
-  if(aluno) {
-    if(aluno.foto && aluno.foto.includes('http')) {
-      boxFoto.innerHTML = `<img src="${aluno.foto}" style="width:100%; height:100%; object-fit:cover;">`;
-    } else {
-      boxFoto.innerHTML = `<i class="bi bi-person-fill" style="font-size: 4rem; color: #94a3b8;"></i>`;
+      Swal.fire({
+        title: 'Conexão Restaurada!',
+        text: 'A sincronizar ocorrências pendentes com o banco de dados...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      let filaRestante = [];
+      let sincDetalhes = "";
+      let sucessos = 0;
+
+      for (let payload of fila) {
+        try {
+          const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+          const dados = await res.json();
+
+          if (dados && dados.success) {
+            sucessos++;
+            const d = payload.dados || {};
+            sincDetalhes += `
+              <div style="border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 6px;">
+                <b class="text-dark">${d.aluno || 'Aluno'}</b> <span class="badge bg-secondary">${d.serie || ''}</span><br>
+                <small class="text-danger fw-semibold">${d.ocorrencia || ''} (${d.gravidade || ''})</small><br>
+                <small class="text-muted">Data: ${d.data || ''}</small>
+              </div>`;
+          } else {
+            filaRestante.push(payload);
+          }
+        } catch (e) {
+          filaRestante.push(payload);
+        }
+      }
+
+      localStorage.setItem('filaOffline_RAC', JSON.stringify(filaRestante));
+      atualizarBadgeOffline();
+      sincronizandoAgora = false;
+
+      if (sucessos > 0) {
+        Swal.fire({
+          title: 'Ocorrências Sincronizadas!',
+          html: `<b>${sucessos}</b> registo(s) enviado(s) com sucesso para o banco de dados:<br><br>
+                 <div style="text-align: left; background: #f8fafc; padding: 12px; border-radius: 8px; max-height: 240px; overflow-y: auto; border: 1px solid #cbd5e1;">
+                   ${sincDetalhes}
+                 </div>`,
+          icon: 'success',
+          confirmButtonColor: '#0f766e'
+        });
+      } else {
+        Swal.close();
+      }
     }
-  } else {
-    boxFoto.innerHTML = `<i class="bi bi-person-fill" style="font-size: 4rem; color: #94a3b8;"></i>`;
-  }
-}
 
-function limparFotoENome() {
-  document.getElementById('racAluno').innerHTML = '<option value="">Selecione o aluno...</option>';
-  document.getElementById('boxFoto').innerHTML = `<i class="bi bi-person-fill" style="font-size: 4rem; color: #94a3b8;"></i>`;
-}
+    // Escuta o retorno da internet automaticamente
+    window.addEventListener('online', sincronizarOfflineRAC);
 
-function aoSelecionarOcorrencia() {
-  const desc = document.getElementById('racOcorrencia').value;
-  const oco = dbOcorrencias.find(o => o.descricao === desc);
-  const inputGrav = document.getElementById('racGravidade');
-  if(oco) {
-    inputGrav.value = oco.gravidade;
-    inputGrav.style.color = oco.gravidade.includes('GRAV') ? '#dc3545' : '#0f766e';
-  } else {
-    inputGrav.value = "";
-  }
-}
+    window.onload = async function() {
+      const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+      if (u) {
+        let nomeProf = u.nome || u.usuario?.nome || u.col1 || "Usuário";
+        const elUser = document.getElementById('nomeUsuarioUi');
+        if (elUser) {
+          elUser.innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeProf}`;
+        }
+      }
 
-async function salvarRAC() {
-  const btn = document.getElementById('btnSalvarRAC');
-  const serie = document.getElementById('racFiltroSerie').value;
-  const alunoNome = document.getElementById('racAluno').value;
-  const data = document.getElementById('racData').value;
-  const oc = document.getElementById('racOcorrencia').value;
-  
-  if(!serie || !alunoNome || !data || !oc) {
-    return Swal.fire('Atenção', 'Preencha a Série, Aluno, Data e Ocorrência.', 'warning');
-  }
-  
-  let payload = {
-    action: 'salvarOcorrencia',
-    dados: {
-      id: document.getElementById('racIdEdit').value,
-      serie: serie,
-      aluno: alunoNome,
-      data: data.split('-').reverse().join('/'),
-      professor: document.getElementById('racProfessor').value,
-      ocorrencia: oc,
-      obs: document.getElementById('racObs').value,
-      gravidade: document.getElementById('racGravidade').value
+      atualizarBadgeOffline();
+      // Dispara a sincronização ao abrir a página caso já tenha internet e existam itens pendentes
+      await sincronizarOfflineRAC();
+
+      let dados = null;
+      if (navigator.onLine) {
+        try {
+          const res = await fetch(API_URL + "?v=" + new Date().getTime(), {
+            method: 'POST',
+            body: JSON.stringify({ action: 'getFiltrosOcorrencias' })
+          });
+          dados = await res.json();
+          if (dados && dados.alunos) {
+            localStorage.setItem('cache_alunos_rac', JSON.stringify(dados.alunos));
+            localStorage.setItem('cache_ocorrencias_rac', JSON.stringify(dados.ocorrencias));
+          }
+        } catch (e) {}
+      }
+
+      if (!dados || !dados.alunos) {
+        const alunosCache = localStorage.getItem('cache_alunos_rac');
+        const ocorrenciasCache = localStorage.getItem('cache_ocorrencias_rac');
+        if (alunosCache && ocorrenciasCache) {
+          dados = {
+            alunos: JSON.parse(alunosCache),
+            ocorrencias: JSON.parse(ocorrenciasCache)
+          };
+        }
+      }
+
+      if (dados) {
+        dbAlunos = dados.alunos || [];
+        dbOcorrencias = dados.ocorrencias || [];
+
+        let seriesSet = new Set();
+        dbAlunos.forEach(a => { if (a.serie) seriesSet.add(a.serie); });
+
+        let htmlSeries = '<option value="">Selecione a série/turma...</option>';
+        Array.from(seriesSet).sort().forEach(s => htmlSeries += `<option value="${s}">${s}</option>`);
+        document.getElementById('racFiltroSerie').innerHTML = htmlSeries;
+
+        let htmlBusca = '';
+        dbAlunos.forEach(a => htmlBusca += `<option value="${a.nome}">${a.serie}</option>`);
+        document.getElementById('listaAlunosBusca').innerHTML = htmlBusca;
+
+        let htmlOc = '<option value="">Selecione a ocorrência...</option>';
+        dbOcorrencias.forEach(o => htmlOc += `<option value="${o.descricao}">${o.descricao}</option>`);
+        document.getElementById('racOcorrencia').innerHTML = htmlOc;
+      }
+    };
+
+    function carregarAlunosPorSerie() {
+      const serieSelecionada = document.getElementById('racFiltroSerie').value;
+      const selAluno = document.getElementById('racAluno');
+      const badgeSerie = document.getElementById('racSerieBadge');
+      limparFotoENome();
+
+      if (!serieSelecionada) {
+        selAluno.innerHTML = '<option value="">Selecione a turma primeiro...</option>';
+        selAluno.disabled = true;
+        badgeSerie.innerText = "Aguardando Turma";
+        return;
+      }
+
+      badgeSerie.innerText = serieSelecionada;
+      const alunosFiltrados = dbAlunos.filter(a => a.serie === serieSelecionada);
+      let html = '<option value="">Selecione o aluno...</option>';
+      alunosFiltrados.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(a => {
+        html += `<option value="${a.nome}">${a.nome}</option>`;
+      });
+      selAluno.innerHTML = html;
+      selAluno.disabled = false;
     }
-  };
 
-  // VERIFICAÇÃO IMEDIATA DE OFFLINE
-  if (!navigator.onLine) {
-    let fila = JSON.parse(localStorage.getItem('filaOffline_RAC') || '[]');
-    fila.push(payload);
-    localStorage.setItem('filaOffline_RAC', JSON.stringify(fila));
-    
-    Swal.fire({
-      title: 'Modo Offline Ativo',
-      text: 'Sem conexão com a internet. Ocorrência guardada no dispositivo e será sincronizada assim que a rede voltar!',
-      icon: 'success',
-      confirmButtonColor: '#0f766e',
-      timer: 2000,
-      showConfirmButton: false
-    }).then(() => limparFormularioRAC());
-    return;
-  }
-  
-  // SE ESTIVER COM INTERNET, SEGUE O FLUXO NORMAL
-  btn.innerHTML = 'Salvando...'; 
-  btn.disabled = true;
-  
-  try {
-    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) }).then(r => r.json());
-    
-    if (res && res.success) {
-      Swal.fire({ title: 'Sucesso!', text: res.msg, icon: 'success', timer: 1500, showConfirmButton: false }).then(() => limparFormularioRAC());
-    } else {
-      Swal.fire('Erro', res.error || 'Ocorreu um erro ao guardar.', 'error');
+    function aoSelecionarAluno() {
+      const nomeAluno = document.getElementById('racAluno').value;
+      const aluno = dbAlunos.find(a => a.nome === nomeAluno);
+      const boxFoto = document.getElementById('boxFoto');
+
+      if (aluno && aluno.foto && aluno.foto.includes('http')) {
+        boxFoto.innerHTML = `<img src="${aluno.foto}" style="width:100%; height:100%; object-fit: cover;">`;
+      } else {
+        boxFoto.innerHTML = `<i class="bi bi-person-fill" style="font-size: 4rem; color: #94a3b8;"></i>`;
+      }
     }
-  } catch (e) {
-    // Caso caia aqui por falha repentina de rede no momento do envio
-    let fila = JSON.parse(localStorage.getItem('filaOffline_RAC') || '[]');
-    fila.push(payload);
-    localStorage.setItem('filaOffline_RAC', JSON.stringify(fila));
-    
-    Swal.fire({
-      title: 'Salvo Offline',
-      text: 'A conexão falhou no envio, mas a ocorrência foi guardada no dispositivo com segurança.',
-      icon: 'info',
-      confirmButtonColor: '#0f766e'
-    }).then(() => limparFormularioRAC());
-  }
-  
-  btn.innerHTML = '<i class="bi bi-save-fill me-2"></i>Registrar Ocorrência'; 
-  btn.disabled = false;
-}
 
-function limparFormularioRAC() {
-  document.getElementById('racIdEdit').value = '';
-  document.getElementById('racFiltroSerie').value = '';
-  document.getElementById('racAluno').innerHTML = '<option value="">Selecione a turma primeiro...</option>';
-  document.getElementById('racAluno').disabled = true;
-  document.getElementById('racOcorrencia').value = '';
-  document.getElementById('racGravidade').value = '';
-  document.getElementById('racObs').value = '';
-  document.getElementById('badgeEdicao').classList.add('d-none');
-  document.getElementById('racSerieBadge').innerText = "Aguardando Turma";
-  document.getElementById('boxFoto').innerHTML = `<i class="bi bi-person-fill" style="font-size: 4rem; color: #94a3b8;"></i>`;
-}
-
-async function buscarRegistosRAC() {
-  const tbody = document.getElementById('tabelaGerenciar');
-  tbody.innerHTML = '<tr><td colspan="6" class="text-center">Buscando...</td></tr>';
-  
-  let payload = {
-    action: 'buscarOcorrencias',
-    filtros: { aluno: document.getElementById('buscaAluno').value, professorLogado: nomeUser, ignorarRestricao: isGestor }
-  };
-  
-  const regs = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) }).then(r=>r.json()).catch(()=>[]);
-  tbody.innerHTML = '';
-  
-  if(!regs || regs.length === 0) return tbody.innerHTML = '<tr><td colspan="6" class="text-center">Nenhum registo encontrado.</td></tr>';
-  
-  regs.forEach(r => {
-    let podeEditar = (isGestor || r.professor === nomeUser.toUpperCase());
-    let acoes = podeEditar ? 
-      `<button class="btn btn-warning btn-sm me-1" onclick="editarRAC('${r.id}', '${r.serie}', '${r.aluno}', '${r.data}', \`${r.ocorrencia}\`, \`${r.obs}\`)"><i class="bi bi-pencil-fill"></i></button>
-       <button class="btn btn-danger btn-sm" onclick="deletarRAC('${r.id}')"><i class="bi bi-trash-fill"></i></button>` : `<span class="badge bg-secondary">Apenas Visualização</span>`;
-       
-    tbody.innerHTML += `<tr>
-      <td class="fw-bold">${r.data}</td><td>${r.aluno}<br><small class="text-muted">${r.serie}</small></td>
-      <td>${r.ocorrencia}</td><td><span class="badge ${r.gravidade.includes('GRAV')?'bg-danger':'bg-warning text-dark'}">${r.gravidade}</span></td>
-      <td>${r.professor}</td><td>${acoes}</td></tr>`;
-  });
-}
-
-function editarRAC(id, serie, aluno, data, oc, obs) {
-  document.querySelector('[data-bs-target="#lancamento"]').click();
-  document.getElementById('racIdEdit').value = id;
-  document.getElementById('racFiltroSerie').value = serie;
-  carregarAlunosPorSerie();
-  document.getElementById('racAluno').value = aluno;
-  if(data.includes('/')) { let p = data.split('/'); document.getElementById('racData').value = `${p[2]}-${p[1]}-${p[0]}`; }
-  document.getElementById('racOcorrencia').value = oc;
-  document.getElementById('racObs').value = obs;
-  document.getElementById('badgeEdicao').classList.remove('d-none');
-  aoSelecionarAluno();
-  aoSelecionarOcorrencia();
-}
-
-async function deletarRAC(id) {
-  if(confirm("Deseja mesmo excluir esta ocorrência?")) {
-    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({action: 'excluirOcorrencia', id: id}) }).then(r=>r.json()).catch(()=>null);
-    if(res && res.success) { buscarRegistosRAC(); }
-  }
-}
-
-async function gerarRelatorioPDF() {
-  const buscaAluno = document.getElementById('buscaAluno').value;
-  if (!buscaAluno) return Swal.fire('Atenção', 'Pesquise por um aluno específico antes de gerar o relatório.', 'warning');
-  
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF('portrait');
-
-  try {
-    const imgElement = document.querySelector('.logo-escola');
-    const canvas = document.createElement('canvas');
-    canvas.width = imgElement.naturalWidth; canvas.height = imgElement.naturalHeight;
-    canvas.getContext('2d').drawImage(imgElement, 0, 0);
-    doc.addImage(canvas.toDataURL('image/png'), 'PNG', 14, 10, 25, 25);
-  } catch (e) {}
-
-  doc.setFontSize(11); doc.setFont("helvetica", "bold");
-  doc.text("ESCOLA DE ENSINO MÉDIO DE TEMPO INTEGRAL", 45, 17);
-  doc.setFontSize(14); doc.text("AGOSTINHO NERES PORTELA", 45, 24);
-  doc.setFontSize(10); doc.setFont("helvetica", "normal");
-  doc.text("Educação Pública de Qualidade", 45, 30);
-  doc.setLineWidth(0.5); doc.line(14, 37, 196, 37);
-
-  doc.setFontSize(12); doc.setFont("helvetica", "bold");
-  doc.text("EXTRATO DISCIPLINAR DO ALUNO (RAC)", 105, 45, {align: 'center'});
-
-  doc.setFontSize(10); doc.setFont("helvetica", "normal");
-  doc.text(`Aluno(a): ${buscaAluno}`, 14, 53);
-  doc.text(`Emitido em: ${new Date().toLocaleString('pt-BR')}`, 196, 53, {align: 'right'});
-
-  let linhas = [];
-  document.querySelectorAll('#tabelaGerenciar tr').forEach(tr => {
-    let cells = tr.querySelectorAll('td');
-    if(cells.length === 6) {
-      linhas.push([cells[0].innerText, cells[2].innerText, cells[3].innerText, cells[4].innerText]);
+    function limparFotoENome() {
+      document.getElementById('racAluno').innerHTML = '<option value="">Selecione o aluno...</option>';
+      document.getElementById('boxFoto').innerHTML = `<i class="bi bi-person-fill" style="font-size: 4rem; color: #94a3b8;"></i>`;
     }
-  });
 
-  if (linhas.length === 0) {
-    doc.text("Nenhum registro encontrado para este aluno.", 14, 65);
-  } else {
-    doc.autoTable({ 
-      startY: 60, head: [['Data', 'Ocorrência / Motivo', 'Gravidade', 'Registrado por']], 
-      body: linhas, headStyles: { fillColor: [15, 118, 110] }, styles: { fontSize: 8 }, columnStyles: { 1: { cellWidth: 80 } }
-    });
-  }
-  
-  doc.save(`Extrato_RAC_${buscaAluno}.pdf`);
-}
+    function aoSelecionarOcorrencia() {
+      const desc = document.getElementById('racOcorrencia').value;
+      const oco = dbOcorrencias.find(o => o.descricao === desc);
+      const inputGrav = document.getElementById('racGravidade');
 
-async function sincronizarOfflineRAC() {
-  let fila = JSON.parse(localStorage.getItem('filaOffline_RAC') || '[]');
-  if (fila.length === 0 || !navigator.onLine) return;
-  
-  for (let payload of fila) {
-    try { await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) }); } catch (e) {}
-  }
-  localStorage.setItem('filaOffline_RAC', '[]');
-}
-window.addEventListener('online', sincronizarOfflineRAC);
-</script>
+      if (oco) {
+        inputGrav.value = oco.gravidade;
+        inputGrav.style.color = oco.gravidade.includes('GRAV') ? '#dc3545' : '#0f766e';
+      } else {
+        inputGrav.value = "";
+      }
+    }
+
+    function guardarNaFilaOffline(payload, tituloMsg, textoMsg, icone) {
+      let fila = JSON.parse(localStorage.getItem('filaOffline_RAC') || '[]');
+      fila.push(payload);
+      localStorage.setItem('filaOffline_RAC', JSON.stringify(fila));
+      atualizarBadgeOffline();
+
+      Swal.fire({
+        title: tituloMsg,
+        text: textoMsg,
+        icon: icone,
+        confirmButtonColor: '#0f766e'
+      }).then(() => limparFormularioRAC());
+    }
+
+    async function salvarRAC() {
+      const btn = document.getElementById('btnSalvarRAC');
+      const serie = document.getElementById('racFiltroSerie').value;
+      const alunoNome = document.getElementById('racAluno').value;
+      const data = document.getElementById('racData').value;
+      const oc = document.getElementById('racOcorrencia').value;
+
+      if (!serie || !alunoNome || !data || !oc) {
+        return Swal.fire('Atenção', 'Preencha a Série, Aluno, Data e Ocorrência.', 'warning');
+      }
+
+      let payload = {
+        action: 'salvarOcorrencia',
+        dados: {
+          id: document.getElementById('racIdEdit').value,
+          serie: serie,
+          aluno: alunoNome,
+          data: data.split('-').reverse().join('/'),
+          professor: document.getElementById('racProfessor').value,
+          ocorrencia: oc,
+          obs: document.getElementById('racObs').value,
+          gravidade: document.getElementById('racGravidade').value
+        }
+      };
+
+      // 1. SE ESTIVER OFFLINE, GUARDA IMEDIATAMENTE NO DISPOSITIVO
+      if (!navigator.onLine) {
+        guardarNaFilaOffline(
+          payload,
+          'Modo Offline Ativo',
+          'Sem conexão com a internet. Ocorrência guardada no dispositivo e será sincronizada automaticamente assim que a rede voltar!',
+          'info'
+        );
+        return;
+      }
+
+      // 2. SE ESTIVER ONLINE, ENVIA PARA A PLANILHA
+      btn.innerHTML = 'Salvando...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        }).then(r => r.json());
+
+        if (res && res.success) {
+          Swal.fire({
+            title: 'Sucesso!',
+            text: res.msg,
+            icon: 'success',
+            timer: 1500,
+            showConfirmButton: false
+          }).then(() => limparFormularioRAC());
+        } else {
+          Swal.fire('Erro', res.error || 'Ocorreu um erro ao guardar.', 'error');
+        }
+      } catch (e) {
+        // Caso a internet caia exatamente no momento do clique
+        guardarNaFilaOffline(
+          payload,
+          'Salvo Offline',
+          'A conexão oscilou no envio, mas a ocorrência foi guardada no dispositivo e será sincronizada assim que a internet estabilizar.',
+          'info'
+        );
+      }
+
+      btn.innerHTML = '<i class="bi bi-save-fill me-2"></i>Registrar Ocorrência';
+      btn.disabled = false;
+    }
+
+    function limparFormularioRAC() {
+      document.getElementById('racIdEdit').value = '';
+      document.getElementById('racFiltroSerie').value = '';
+      document.getElementById('racAluno').innerHTML = '<option value="">Selecione a turma primeiro...</option>';
+      document.getElementById('racAluno').disabled = true;
+      document.getElementById('racOcorrencia').value = '';
+      document.getElementById('racGravidade').value = '';
+      document.getElementById('racObs').value = '';
+      document.getElementById('badgeEdicao').classList.add('d-none');
+      document.getElementById('racSerieBadge').innerText = "Aguardando Turma";
+      document.getElementById('boxFoto').innerHTML = `<i class="bi bi-person-fill" style="font-size: 4rem; color: #94a3b8;"></i>`;
+    }
+
+    async function buscarRegistosRAC() {
+      const tbody = document.getElementById('tabelaGerenciar');
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center">Buscando...</td></tr>';
+
+      let payload = {
+        action: 'buscarOcorrencias',
+        filtros: {
+          aluno: document.getElementById('buscaAluno').value,
+          professorLogado: nomeUser,
+          ignorarRestricao: isGestor
+        }
+      };
+
+      const regs = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }).then(r => r.json()).catch(() => []);
+
+      tbody.innerHTML = '';
+      if (!regs || regs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">Nenhum registo encontrado.</td></tr>';
+        return;
+      }
+
+      regs.forEach(r => {
+        let podeEditar = (isGestor || r.professor === nomeUser.toUpperCase());
+        let acoes = podeEditar ?
+          `<button class="btn btn-warning btn-sm me-1" onclick="editarRAC('${r.id}', '${r.serie}', '${r.aluno}', '${r.data}', \`${r.ocorrencia}\`, \`${r.obs}\`)"><i class="bi bi-pencil-fill"></i></button>
+           <button class="btn btn-danger btn-sm" onclick="deletarRAC('${r.id}')"><i class="bi bi-trash-fill"></i></button>` :
+          `<span class="badge bg-secondary">Apenas Visualização</span>`;
+
+        tbody.innerHTML += `
+          <tr>
+            <td class="fw-bold">${r.data}</td>
+            <td>${r.aluno}<br><small class="text-muted">${r.serie}</small></td>
+            <td>${r.ocorrencia}</td>
+            <td><span class="badge ${r.gravidade.includes('GRAV') ? 'bg-danger' : 'bg-warning text-dark'}">${r.gravidade}</span></td>
+            <td>${r.professor}</td>
+            <td>${acoes}</td>
+          </tr>`;
+      });
+    }
+
+    function editarRAC(id, serie, aluno, data, oc, obs) {
+      document.querySelector('[data-bs-target="#lancamento"]').click();
+      document.getElementById('racIdEdit').value = id;
+      document.getElementById('racFiltroSerie').value = serie;
+      carregarAlunosPorSerie();
+      document.getElementById('racAluno').value = aluno;
+      if (data.includes('/')) {
+        let p = data.split('/');
+        document.getElementById('racData').value = `${p[2]}-${p[1]}-${p[0]}`;
+      }
+      document.getElementById('racOcorrencia').value = oc;
+      document.getElementById('racObs').value = obs;
+      document.getElementById('badgeEdicao').classList.remove('d-none');
+      aoSelecionarAluno();
+      aoSelecionarOcorrencia();
+    }
+
+    async function deletarRAC(id) {
+      if (confirm("Deseja mesmo excluir esta ocorrência?")) {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'excluirOcorrencia', id: id })
+        }).then(r => r.json()).catch(() => null);
+        if (res && res.success) { buscarRegistosRAC(); }
+      }
+    }
+
+    async function gerarRelatorioPDF() {
+      const buscaAluno = document.getElementById('buscaAluno').value;
+      if (!buscaAluno) return Swal.fire('Atenção', 'Pesquise por um aluno específico antes de gerar o relatório.', 'warning');
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('portrait');
+
+      try {
+        const imgElement = document.querySelector('.logo-escola');
+        const canvas = document.createElement('canvas');
+        canvas.width = imgElement.naturalWidth;
+        canvas.height = imgElement.naturalHeight;
+        canvas.getContext('2d').drawImage(imgElement, 0, 0);
+        doc.addImage(canvas.toDataURL('image/png'), 'PNG', 14, 10, 25, 25);
+      } catch (e) {}
+
+      doc.setFontSize(11); doc.setFont("helvetica", "bold");
+      doc.text("ESCOLA DE ENSINO MÉDIO DE TEMPO INTEGRAL", 45, 17);
+      doc.setFontSize(14); doc.text("AGOSTINHO NERES PORTELA", 45, 24);
+      doc.setFontSize(10); doc.setFont("helvetica", "normal");
+      doc.text("Educação Pública de Qualidade", 45, 30);
+      doc.setLineWidth(0.5); doc.line(14, 37, 196, 37);
+
+      doc.setFontSize(12); doc.setFont("helvetica", "bold");
+      doc.text("EXTRATO DISCIPLINAR DO ALUNO (RAC)", 105, 45, { align: 'center' });
+      doc.setFontSize(10); doc.setFont("helvetica", "normal");
+      doc.text(`Aluno(a): ${buscaAluno}`, 14, 53);
+      doc.text(`Emitido em: ${new Date().toLocaleString('pt-BR')}`, 196, 53, { align: 'right' });
+
+      let linhas = [];
+      document.querySelectorAll('#tabelaGerenciar tr').forEach(tr => {
+        let cells = tr.querySelectorAll('td');
+        if (cells.length === 6) {
+          linhas.push([cells[0].innerText, cells[2].innerText, cells[3].innerText, cells[4].innerText]);
+        }
+      });
+
+      if (linhas.length === 0) {
+        doc.text("Nenhum registro encontrado para este aluno.", 14, 65);
+      } else {
+        doc.autoTable({
+          startY: 60,
+          head: [['Data', 'Ocorrência / Motivo', 'Gravidade', 'Registrado por']],
+          body: linhas,
+          headStyles: { fillColor: [15, 118, 110] },
+          styles: { fontSize: 8 },
+          columnStyles: { 1: { cellWidth: 80 } }
+        });
+      }
+      doc.save(`Extrato_RAC_${buscaAluno}.pdf`);
+    }
+  </script>
 </body>
 </html>
