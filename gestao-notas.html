@@ -121,6 +121,21 @@
   <footer style="padding:20px; text-align:center;"><strong>&copy; <span id="anoAtual"></span> EEMTI Agostinho Neres.</strong></footer>
 
   <script>
+
+    // INTERCEPTADOR AUTOMÁTICO DE AUDITORIA: Injeta o nome do usuário logado em todas as ações
+const _fetchOriginal = window.fetch;
+window.fetch = function(url, options) {
+  if (options && options.method === 'POST' && typeof options.body === 'string') {
+    try {
+      const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+      const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
+      let bodyObj = JSON.parse(options.body);
+      if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
+      options.body = JSON.stringify(bodyObj);
+    } catch (e) {}
+  }
+  return _fetchOriginal(url, options);
+};
     document.getElementById('anoAtual').innerText = new Date().getFullYear();
 
     const perfilUser = (usuarioLogado.permissao || usuarioLogado.usuario?.role || "").toUpperCase();
