@@ -124,6 +124,20 @@
   </div>
 
   <script>
+    // INTERCEPTADOR AUTOMÁTICO DE AUDITORIA: Injeta o nome do usuário logado em todas as ações
+const _fetchOriginal = window.fetch;
+window.fetch = function(url, options) {
+  if (options && options.method === 'POST' && typeof options.body === 'string') {
+    try {
+      const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+      const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
+      let bodyObj = JSON.parse(options.body);
+      if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
+      options.body = JSON.stringify(bodyObj);
+    } catch (e) {}
+  }
+  return _fetchOriginal(url, options);
+};
     const API_URL = "https://script.google.com/macros/s/AKfycbyNedpZQsNt5lzHtrCSRfC4bWFEuCHHkZ4ygbm-DDm0NUBVARwS5GNFMu2zB3WutFE/exec";
     
     window.onload = carregarDados;
