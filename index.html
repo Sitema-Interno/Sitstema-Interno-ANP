@@ -265,6 +265,10 @@ if (!usuarioLogado) {
             <span><i class="bi bi-person-badge me-2 text-primary"></i>Gestão de Alunos</span>
             <i class="bi bi-chevron-right small text-muted"></i>
           </a>
+          <a href="mapeamento-sala.html" class="btn-item-menu">
+            <span><i class="bi bi-grid-3x3-gap-fill me-2 text-warning"></i>Mapeamento de Sala (Fotos 3x4)</span>
+            <i class="bi bi-chevron-right small text-muted"></i>
+          </a>
         </div>
       </div>
     </div>
@@ -388,10 +392,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     document.getElementById('saudacaoTitulo').innerText = `Olá, ${nomeUser.toUpperCase()}! Seja bem-vindo(a)`;
 
-    if (perfil !== 'ADMINISTRADOR' && perfil !== 'DIREÇÃO') {
-      const blocoAlunos = document.getElementById('blocoAlunos');
-      if (blocoAlunos) blocoAlunos.style.display = 'none';
-
+   
       const linkCadastro = document.getElementById('linkCadastroEletiva');
       if (linkCadastro) linkCadastro.style.display = 'none';
 
@@ -399,7 +400,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (blocoGestao) blocoGestao.style.display = 'none';
     }
   }
-});
+);
 
 function fazerLogout() {
   Swal.fire({
