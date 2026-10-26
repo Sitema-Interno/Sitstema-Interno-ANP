@@ -391,7 +391,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const perfil = (usuarioLogado.permissao || usuarioLogado.usuario?.role || "").toUpperCase();
 
     document.getElementById('saudacaoTitulo').innerText = `Olá, ${nomeUser.toUpperCase()}! Seja bem-vindo(a)`;
-
+if (perfil !== 'ADMINISTRADOR' && perfil !== 'DIREÇÃO') {
    
       const linkCadastro = document.getElementById('linkCadastroEletiva');
       if (linkCadastro) linkCadastro.style.display = 'none';
@@ -400,7 +400,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (blocoGestao) blocoGestao.style.display = 'none';
     }
   }
-);
+});
 
 function fazerLogout() {
   Swal.fire({
