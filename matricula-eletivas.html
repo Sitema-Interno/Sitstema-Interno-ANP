@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta name="theme-color" content="#0f766e">
-<link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="manifest.json">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sistema Escolar - Matrícula em Eletivas</title>
@@ -17,7 +17,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
-   <style>
+  <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     
     body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; margin: 0; position: relative; }
@@ -58,15 +58,12 @@
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js')
-      .catch(err => console.log('Erro ao registrar Service Worker:', err));
+      .catch(err => console.log('Erro ao registar Service Worker:', err));
   });
 }
 </script>
 <body>
 
-  <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="">
-
-  
   <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="">
 
   <!-- CABEÇALHO -->
@@ -88,12 +85,11 @@ if ('serviceWorker' in navigator) {
     </div>
   </nav>
 
-
   <div class="main-container">
     
     <div id="loaderInicial" class="loader text-center my-5">
       <i class="bi bi-cloud-arrow-down-fill fs-1"></i><br>
-      Sincronizando banco de dados da escola, aguarde...
+      A sincronizar base de dados da escola, aguarde...
     </div>
 
     <div id="conteudoPrincipal" style="display: none;">
@@ -164,7 +160,7 @@ if ('serviceWorker' in navigator) {
             </select>
           </div>
           <div class="col-md-4">
-            <button class="btn btn-danger w-100" onclick="gerarPdfRelatorio()">
+            <button type="button" class="btn btn-danger w-100 shadow-sm" onclick="gerarPdfRelatorio()">
               <i class="bi bi-file-earmark-pdf-fill me-2"></i>Baixar PDF
             </button>
           </div>
@@ -178,20 +174,6 @@ if ('serviceWorker' in navigator) {
   </footer>
 
   <script>
-    // INTERCEPTADOR AUTOMÁTICO DE AUDITORIA: Injeta o nome do usuário logado em todas as ações
-const _fetchOriginal = window.fetch;
-window.fetch = function(url, options) {
-  if (options && options.method === 'POST' && typeof options.body === 'string') {
-    try {
-      const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
-      const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
-      let bodyObj = JSON.parse(options.body);
-      if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
-      options.body = JSON.stringify(bodyObj);
-    } catch (e) {}
-  }
-  return _fetchOriginal(url, options);
-};
     document.getElementById('anoAtual').innerText = new Date().getFullYear();
 
     const API_URL = "https://script.google.com/macros/s/AKfycbyNedpZQsNt5lzHtrCSRfC4bWFEuCHHkZ4ygbm-DDm0NUBVARwS5GNFMu2zB3WutFE/exec";
@@ -200,7 +182,6 @@ window.fetch = function(url, options) {
     let dbCatalogo = [];
     let dbHistorico = [];
 
-    // Função Inteligente de Cache Offline para Leitura Inicial
     async function chamarAPIComCache(payload, chaveCache) {
       if (navigator.onLine) {
         try {
@@ -211,10 +192,9 @@ window.fetch = function(url, options) {
             return data;
           }
         } catch (e) {
-          console.log("Falha na rede, lendo do cache local...");
+          console.log("Falha na rede, a ler do cache local...");
         }
       }
-      
       let cacheLocal = localStorage.getItem(chaveCache);
       return cacheLocal ? JSON.parse(cacheLocal) : null;
     }
@@ -227,11 +207,11 @@ window.fetch = function(url, options) {
         
         Swal.fire({
           title: 'Sistema Interno ANP',
-          text: '📴 Sem conexão com a internet! Os dados foram salvos no dispositivo e serão enviados automaticamente assim que a rede voltar.',
+          text: '📴 Sem ligação à internet! Os dados foram guardados no dispositivo.',
           icon: 'info',
           confirmButtonColor: '#0f766e'
         });
-        return { success: true, msg: "Salvo localmente (Offline)." };
+        return { success: true, msg: "Guardado localmente (Offline)." };
       }
 
       try {
@@ -248,47 +228,45 @@ window.fetch = function(url, options) {
           icon: 'warning',
           confirmButtonColor: '#0f766e'
         });
-        return { success: true, msg: "Salvo localmente por falha de rede." };
+        return { success: true, msg: "Guardado localmente por falha de rede." };
       }
     }
 
-    // Sincroniza automaticamente assim que a internet volta
     window.addEventListener('online', async () => {
-  let fila = JSON.parse(localStorage.getItem('filaOffline') || '[]');
-  if (fila.length > 0) {
-    Swal.fire({ title: 'A Sincronizar...', text: 'A enviar dados pendentes...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-    for (let item of fila) {
-      try { await fetch(API_URL, { method: 'POST', body: JSON.stringify(item) }); } catch (err) {}
-    }
-    localStorage.removeItem('filaOffline');
-    Swal.fire({ title: 'Sincronizado!', text: 'Os dados foram sincronizados com sucesso.', icon: 'success' }).then(() => window.location.reload());
-  }
-});
+      let fila = JSON.parse(localStorage.getItem('filaOffline') || '[]');
+      if (fila.length > 0) {
+        Swal.fire({ title: 'A Sincronizar...', text: 'A enviar dados pendentes...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        for (let item of fila) {
+          try { await fetch(API_URL, { method: 'POST', body: JSON.stringify(item) }); } catch (err) {}
+        }
+        localStorage.removeItem('filaOffline');
+        Swal.fire({ title: 'Sincronizado!', text: 'Os dados foram sincronizados com sucesso.', icon: 'success' }).then(() => window.location.reload());
+      }
+    });
 
-    // Ao iniciar a página, carrega tudo com suporte a Cache Offline
-    
-    window.onload = async function() {const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
-  if (u) {
-    let nomeProf = u.nome || u.usuario?.nome || u.col1 || "Usuário";
-    const elUser = document.getElementById('nomeUsuarioUi');
-    if (elUser) {
-      elUser.innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeProf}`;
-    }
-  }
+    window.onload = async function() {
+      const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+      if (u) {
+        let nomeProf = u.nome || u.usuario?.nome || u.col1 || "Utilizador";
+        const elUser = document.getElementById('nomeUsuarioUi');
+        if (elUser) {
+          elUser.innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeProf}`;
+        }
+      }
       preencherAnos();
       
       const dados = await chamarAPIComCache({ action: 'getDadosMatricula' }, 'cache_dados_matricula');
       if(dados) {
-        dbAlunos = dados.alunos;
-        dbCatalogo = dados.catalogo;
-        dbHistorico = dados.historico;
+        dbAlunos = dados.alunos || [];
+        dbCatalogo = dados.catalogo || [];
+        dbHistorico = dados.historico || [];
         
         preencherTodasSeriesParaRelatorio();
         
         document.getElementById('loaderInicial').style.display = 'none';
         document.getElementById('conteudoPrincipal').style.display = 'block';
       } else {
-        document.getElementById('loaderInicial').innerHTML = '<i class="bi bi-exclamation-triangle-fill text-danger fs-1"></i><br>Erro ao carregar dados. Verifique a sua conexão na primeira vez que abre o aplicativo.';
+        document.getElementById('loaderInicial').innerHTML = '<i class="bi bi-exclamation-triangle-fill text-danger fs-1"></i><br>Erro ao carregar dados. Verifique a sua ligação.';
       }
     };
 
@@ -317,9 +295,7 @@ window.fetch = function(url, options) {
         return;
       }
 
-      // Extrai o número da turma (ex: "1" de "1º ANO")
       const numeroTurma = turma.charAt(0); 
-      
       let seriesDaTurma = [...new Set(dbAlunos
         .filter(a => String(a.serie).startsWith(numeroTurma))
         .map(a => a.serie)
@@ -357,7 +333,7 @@ window.fetch = function(url, options) {
       const btn = document.getElementById('btnMatricular');
 
       if(!ano || !turma || !aluno) {
-        container.innerHTML = '<div class="alert alert-secondary text-center small">Selecione Semestre, Turma, Série e Aluno para liberar as eletivas.</div>';
+        container.innerHTML = '<div class="alert alert-secondary text-center small">Selecione Semestre, Turma, Série e Aluno para libertar as eletivas.</div>';
         btn.style.display = 'none';
         return;
       }
@@ -365,7 +341,7 @@ window.fetch = function(url, options) {
       const eletivasDisponiveis = dbCatalogo.filter(c => c.ano === ano && c.turma === turma);
       
       if(eletivasDisponiveis.length === 0) {
-        container.innerHTML = `<div class="alert alert-warning text-center"><i class="bi bi-exclamation-triangle-fill me-2"></i>Nenhuma eletiva cadastrada para <b>${turma}</b> no semestre <b>${ano}</b>. Cadastre na tela de Eletivas primeiro.</div>`;
+        container.innerHTML = `<div class="alert alert-warning text-center"><i class="bi bi-exclamation-triangle-fill me-2"></i>Nenhuma eletiva registada para <b>${turma}</b> no semestre <b>${ano}</b>.</div>`;
         btn.style.display = 'none';
         return;
       }
@@ -376,8 +352,8 @@ window.fetch = function(url, options) {
       diasUnicos.forEach(dia => {
         let eletivasDoDia = eletivasDisponiveis.filter(e => e.dia === dia);
         
-        html += `<div class="dia-block">
-                   <div class="dia-title"><i class="bi bi-calendar-day-fill me-2"></i>${dia}</div>
+        html += `<div class="dia-block mb-3">
+                   <div class="dia-title fw-bold small text-secondary mb-1"><i class="bi bi-calendar-day-fill me-2"></i>${dia}</div>
                    <select class="form-select eletiva-select" data-dia="${dia}" onchange="validarEletivaUnica(this)">
                      <option value="">Selecione a Eletiva para este dia...</option>`;
         
@@ -392,8 +368,8 @@ window.fetch = function(url, options) {
           }
         });
         
-        html += `  </select>
-                 </div>`;
+        html += ` </select>
+               </div>`;
       });
 
       container.innerHTML = html;
@@ -410,7 +386,7 @@ window.fetch = function(url, options) {
       if(jaCursou) {
         Swal.fire({
           title: 'Ação Bloqueada!',
-          text: `O aluno(a) ${aluno} já cursou a eletiva "${eletivaSelecionada}" no semestre ${jaCursou.ano}.\n\nPor favor, selecione uma eletiva diferente.`,
+          text: `O aluno(a) ${aluno} já frequentou a eletiva "${eletivaSelecionada}" no semestre ${jaCursou.ano}.`,
           icon: 'error',
           confirmButtonColor: '#0f766e'
         });
@@ -437,15 +413,15 @@ window.fetch = function(url, options) {
       });
 
       if(temFaltante) {
-        return Swal.fire({ title: 'Atenção', text: 'Por favor, selecione uma eletiva para TODOS os dias da semana listados.', icon: 'warning', confirmButtonColor: '#0f766e' });
+        return Swal.fire({ title: 'Atenção', text: 'Selecione uma eletiva para TODOS os dias da semana listados.', icon: 'warning', confirmButtonColor: '#0f766e' });
       }
 
       const btn = document.getElementById('btnMatricular');
-      btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Matriculando...'; btn.disabled = true;
+      btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>A matricular...'; btn.disabled = true;
 
       const resposta = await chamarAPI({ action: 'salvarMatricula', matriculas: matriculas });
       
-      if(resposta && resposta.success) {
+      if(resposta && (resposta.success || resposta.msg)) {
         Swal.fire({ title: 'Sucesso!', text: resposta.msg || 'Matrícula efetuada!', icon: 'success', confirmButtonColor: '#0f766e' });
         
         matriculas.forEach(m => dbHistorico.push(m));
@@ -456,84 +432,140 @@ window.fetch = function(url, options) {
       btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Finalizar Matrícula'; btn.disabled = false;
     }
 
-    // ==========================================
-    // GERAR PDF COM MATRIZ DE MATRÍCULAS DA TURMA
-    // ==========================================
-    async function baixarRelatorioPDF() {
-  const { jsPDF } = window.jspdf;
-  // Utiliza 'landscape' (paisagem) devido à largura das 6 colunas
-  const doc = new jsPDF('landscape');
-  
-  // 1. INSERÇÃO DA LOGO DA ESCOLA
-  try {
-    const imgElement = document.querySelector('.logo-escola');
-    const canvas = document.createElement('canvas');
-    canvas.width = imgElement.naturalWidth;
-    canvas.height = imgElement.naturalHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(imgElement, 0, 0);
-    const imgData = canvas.toDataURL('image/png');
-    doc.addImage(imgData, 'PNG', 14, 10, 25, 25);
-  } catch (e) {
-    console.log("Aviso: Imagem bloqueada para PDF.");
-  }
-
-  // 2. CABEÇALHO PADRÃO DA ESCOLA
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text("ESCOLA DE ENSINO MÉDIO DE TEMPO INTEGRAL", 45, 17);
-  doc.setFontSize(14);
-  doc.text("AGOSTINHO NERES PORTELA", 45, 24);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text("Educação Pública de Qualidade", 45, 30);
-  doc.setLineWidth(0.5);
-  // Linha ajustada para a largura da página em modo paisagem (297mm)
-  doc.line(14, 37, 283, 37);
-
-  // 3. TÍTULO E INFORMAÇÕES DO RELATÓRIO
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  // O centro da página em paisagem é aproximadamente 148
-  doc.text("RELATÓRIO DE MATRÍCULAS - ELETIVAS", 148, 45, {align: 'center'});
-  
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  
-  // Lê os filtros que o usuário selecionou na tela
-  const semestre = document.getElementById('relAno') ? document.getElementById('relAno').value : "Não definido";
-  const serie = document.getElementById('relSerie') ? document.getElementById('relSerie').options[document.getElementById('relSerie').selectedIndex].text : "Não definido";
-  
-  doc.text(`Semestre: ${semestre}`, 14, 53);
-  doc.text(`Série/Turma: ${serie}`, 14, 58);
-  
-  // Adiciona a data e hora da emissão
-  const dataAtual = new Date();
-  const dataStr = dataAtual.toLocaleDateString('pt-BR') + ' às ' + dataAtual.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-  doc.text(`Emitido em: ${dataStr}`, 283, 53, {align: 'right'});
-
-  // 4. CAPTURA DOS DADOS DA TABELA
-  let linhas = [];
-  document.querySelectorAll('#tabelaRelatorio tr').forEach(tr => {
-    let linhaArr = [];
-    tr.querySelectorAll('td').forEach(td => linhaArr.push(td.innerText));
-    if(linhaArr.length > 0) {
-      linhas.push(linhaArr);
+    function obterBase64Logo() {
+      try {
+        const img = document.querySelector('.logo-escola');
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width || 100;
+        canvas.height = img.naturalHeight || img.height || 100;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL('image/png');
+      } catch (e) {
+        return null;
+      }
     }
-  });
 
-  // 5. GERAÇÃO DA TABELA NO PDF
-  doc.autoTable({ 
-    startY: 65, 
-    head: [['NOME DO ALUNO', 'SEGUNDA', 'TERÇA', 'QUARTA', 'QUINTA', 'SEXTA']], 
-    body: linhas, 
-    headStyles: { fillColor: [15, 118, 110] }, // Cor verde da escola
-    styles: { fontSize: 8 }, // Fonte ajustada para caber todas as disciplinas
-    margin: { left: 14, right: 14 }
-  });
-  
-  doc.save("Relatorio_Matriculas_Eletivas.pdf");
-}
+    // ==========================================
+    // GERAÇÃO ROBUSTA DE PDF DO RELATÓRIO
+    // ==========================================
+    async function gerarPdfRelatorio() {
+      try {
+        const semestre = document.getElementById('relAno').value;
+        const serie = document.getElementById('relSerie').value;
+
+        if (!semestre || !serie) {
+          return Swal.fire('Atenção', 'Selecione o Semestre e a Série para gerar o relatório.', 'warning');
+        }
+
+        let alunosDaTurma = dbAlunos.filter(a => String(a.serie || "").trim() === String(serie).trim()).sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || "")));
+
+        if (alunosDaTurma.length === 0) {
+          return Swal.fire('Aviso', 'Nenhum aluno encontrado para esta série.', 'info');
+        }
+
+        Swal.fire({ title: 'A gerar PDF...', text: 'A consultar matrículas da turma...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+        // Consulta a rota oficial no servidor (getRelatorioMatriculas) que devolve a propriedade "dia" corretamente
+        let relatorioServidor = [];
+        try {
+          const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'getRelatorioMatriculas', ano: semestre, serie: serie })
+          });
+          const json = await res.json();
+          if (Array.isArray(json)) {
+            relatorioServidor = json;
+          }
+        } catch (err) {
+          console.warn("A usar histórico local como alternativa:", err);
+        }
+
+        // Caso esteja offline ou a resposta venha vazia, reconstrói o dia cruzando com dbCatalogo
+        const fonteMatriculas = relatorioServidor.length > 0 ? relatorioServidor : dbHistorico.filter(h => String(h.ano || "").trim() === String(semestre).trim());
+
+        let linhasTabela = [];
+        alunosDaTurma.forEach((aluno, index) => {
+          const nomeAlunoUpper = String(aluno.nome || "").trim().toUpperCase();
+          
+          let matriculasAluno = fonteMatriculas.filter(h => String(h.aluno || "").trim().toUpperCase() === nomeAlunoUpper).map(m => {
+            let diaEncontrado = String(m.dia || "").trim();
+            if (!diaEncontrado) {
+              const itemCat = dbCatalogo.find(c => 
+                String(c.ano || "").trim() === String(semestre).trim() &&
+                (String(c.nome || "").trim().toUpperCase() === String(m.eletiva || "").trim().toUpperCase() ||
+                 String(c.nome || "").trim().toUpperCase().startsWith(String(m.eletiva || "").trim().toUpperCase()))
+              );
+              if (itemCat && itemCat.dia) diaEncontrado = String(itemCat.dia);
+            }
+            return {
+              eletiva: String(m.eletiva || "-"),
+              dia: diaEncontrado.toLowerCase()
+            };
+          });
+          
+          let eletivaSegunda = matriculasAluno.find(h => h.dia.includes('segunda'))?.eletiva || '-';
+          let eletivaTerca = matriculasAluno.find(h => h.dia.includes('terça') || h.dia.includes('terca'))?.eletiva || '-';
+          let eletivaQuarta = matriculasAluno.find(h => h.dia.includes('quarta'))?.eletiva || '-';
+          let eletivaQuinta = matriculasAluno.find(h => h.dia.includes('quinta'))?.eletiva || '-';
+          let eletivaSexta = matriculasAluno.find(h => h.dia.includes('sexta'))?.eletiva || '-';
+
+          linhasTabela.push([
+            (index + 1),
+            String(aluno.nome || ""),
+            eletivaSegunda,
+            eletivaTerca,
+            eletivaQuarta,
+            eletivaQuinta,
+            eletivaSexta
+          ]);
+        });
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('landscape', 'mm', 'a4');
+
+        // Logótipo da escola
+        const logo = obterBase64Logo();
+        if (logo) {
+          doc.addImage(logo, 'PNG', 14, 10, 18, 18);
+        }
+
+        // Cabeçalho Institucional
+        doc.setFontSize(13);
+        doc.setFont("helvetica", "bold");
+        doc.text("E.E.M.T.I AGOSTINHO NERES PORTELA", 35, 17);
+        
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text(`RELATÓRIO DE MATRÍCULAS EM ELETIVAS — Semestre: ${semestre} | Turma: ${serie}`, 35, 23);
+
+        const dataAtual = new Date().toLocaleDateString('pt-BR');
+        doc.text(`Emitido em: ${dataAtual}`, 283, 23, { align: 'right' });
+
+        doc.setLineWidth(0.3);
+        doc.line(14, 30, 283, 30);
+
+        // Tabela com os dados
+        doc.autoTable({
+          startY: 34,
+          head: [['#', 'Nome do Aluno', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira']],
+          body: linhasTabela,
+          theme: 'grid',
+          headStyles: { fillColor: [15, 118, 110] },
+          columnStyles: { 
+            0: { cellWidth: 10, halign: 'center' },
+            1: { cellWidth: 65 } 
+          },
+          styles: { fontSize: 8, cellPadding: 2 }
+        });
+
+        Swal.close();
+        doc.save(`Relatorio_Eletivas_${serie.replace(/ /g, '_')}_${semestre}.pdf`);
+      } catch (err) {
+        console.error(err);
+        Swal.fire('Erro', 'Ocorreu um erro ao gerar o PDF: ' + err.message, 'error');
+      }
+    }
   </script>
 </body>
 </html>
