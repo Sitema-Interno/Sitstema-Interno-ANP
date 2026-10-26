@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta name="theme-color" content="#0f766e">
+  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mapeamento de Sala de Aula - EEMTI Agostinho Neres Portela</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- Bibliotecas para Gerar o PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f4f7f6;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      position: relative;
+    }
+
+    /* MARCA D'ÁGUA PADRONIZADA */
+    .watermark-bg {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 50vw;
+      max-width: 550px;
+      opacity: 0.08;
+      z-index: -1;
+      pointer-events: none;
+      mix-blend-mode: multiply;
+    }
+
+    /* CABEÇALHO PADRONIZADO */
+    .navbar-custom {
+      background-color: rgba(255, 255, 255, 0.96);
+      padding: 15px 20px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .navbar-brand {
+      font-weight: 700;
+      font-size: 1.5rem;
+      color: #1e293b !important;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .sub-text {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: #64748b;
+      margin-top: -3px;
+    }
+
+    .logo-escola {
+      height: 55px;
+      object-fit: contain;
+      mix-blend-mode: multiply;
+    }
+
+    .main-container {
+      padding: 25px 15px 40px 15px;
+      max-width: 1440px;
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+    }
+
+    .card {
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+      margin-bottom: 24px;
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(5px);
+    }
+
+    .card-header-custom {
+      border-bottom: 1px solid #eaeaea;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .form-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+
+    .form-control, .form-select {
+      border-radius: 8px;
+      border: 1px solid #ced4da;
+      padding: 8px 12px;
+      font-size: 0.88rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: #0f766e;
+      box-shadow: 0 0 0 0.2rem rgba(15, 118, 110, 0.15);
+    }
+
+    .btn-tema {
+      background-color: #0f766e;
+      color: white;
+      border: none;
+      font-weight: 600;
+      border-radius: 8px;
+    }
+
+    .btn-tema:hover {
+      background-color: #0d645e;
+      color: white;
+    }
+
+    /* QUADRO / FRENTE DA SALA */
+    .frente-sala-bar {
+      background: linear-gradient(90deg, #1e293b 0%, #334155 100%);
+      color: #ffffff;
+      border-radius: 10px;
+      padding: 10px 24px;
+      margin: 0 auto 22px auto;
+      max-width: 750px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+      border-bottom: 4px solid #0f766e;
+    }
+
+    /* GRELHA DO MAPEAMENTO DE SALA */
+    .sala-scroll-wrapper {
+      overflow-x: auto;
+      padding-bottom: 12px;
+    }
+
+    .grid-mapeamento {
+      display: grid;
+      gap: 14px;
+      min-width: 850px;
+    }
+
+    .header-fila {
+      background: #0f766e;
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 0.82rem;
+      text-align: center;
+      padding: 8px;
+      border-radius: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* CARTEIRA DO ALUNO COM MOLDURA 3x4 */
+    .carteira-card {
+      background: #ffffff;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: all 0.2s ease;
+      position: relative;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    }
+
+    .carteira-card.ocupada {
+      border-color: #0f766e;
+      background: #f0fdf4;
+      box-shadow: 0 4px 12px rgba(15, 118, 110, 0.10);
+    }
+
+    .carteira-badge-pos {
+      position: absolute;
+      top: 6px;
+      left: 8px;
+      font-size: 0.68rem;
+      font-weight: 800;
+      color: #64748b;
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 5px;
+      border: 1px solid #cbd5e1;
+    }
+
+    .carteira-card.ocupada .carteira-badge-pos {
+      background: #0f766e;
+      color: #ffffff;
+      border-color: #0f766e;
+    }
+
+    .btn-limpar-assento {
+      position: absolute;
+      top: 5px;
+      right: 6px;
+      border: none;
+      background: #fee2e2;
+      color: #dc2626;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      font-size: 0.7rem;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .carteira-card.ocupada .btn-limpar-assento {
+      display: flex;
+    }
+
+    .btn-limpar-assento:hover {
+      background: #dc2626;
+      color: #ffffff;
+    }
+
+    /* MOLDURA ESTILO FOTO 3x4 */
+    .moldura-3x4 {
+      width: 78px;
+      height: 104px; /* Proporção exata 3x4 */
+      border-radius: 6px;
+      border: 2px dashed #cbd5e1;
+      background-color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      margin-top: 14px;
+      margin-bottom: 8px;
+      position: relative;
+    }
+
+    .carteira-card.ocupada .moldura-3x4 {
+      border: 2px solid #0f766e;
+      background-color: #ffffff;
+    }
+
+    .moldura-3x4 img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .placeholder-3x4 {
+      text-align: center;
+      color: #94a3b8;
+      font-size: 0.68rem;
+      line-height: 1.1;
+      padding: 4px;
+    }
+
+    .placeholder-3x4 i {
+      font-size: 1.6rem;
+      display: block;
+      margin-bottom: 2px;
+      color: #cbd5e1;
+    }
+
+    .select-aluno-carteira {
+      width: 100%;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 5px 6px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      background-color: #ffffff;
+      color: #1e293b;
+      text-overflow: ellipsis;
+    }
+
+    .carteira-card.ocupada .select-aluno-carteira {
+      border-color: #0f766e;
+      color: #0f766e;
+      font-weight: 700;
+    }
+
+    .footer-custom {
+      text-align: center;
+      padding: 20px;
+      font-size: 0.85rem;
+      color: #64748b;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(255, 255, 255, 0.8);
+    }
+  </style>
+
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) window.location.href = 'login.html';
+  </script>
+</head>
+<body>
+
+  <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="" onerror="this.style.display='none'">
+
+  <!-- CABEÇALHO PADRONIZADO -->
+  <nav class="navbar navbar-custom">
+    <div class="container-fluid max-w-1440 mx-auto">
+      <span class="navbar-brand">
+        <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+        <div>
+          Mapeamento de Sala de Aula (3x4)
+          <div class="sub-text">EEMTI Agostinho Neres Portela</div>
+        </div>
+      </span>
+      <div class="d-flex align-items-center gap-3">
+        <span class="text-muted fw-semibold small d-none d-md-block" id="nomeUsuarioUi">
+          <i class="bi bi-person-circle me-1"></i>A carregar...
+        </span>
+        <a href="index.html" class="btn btn-outline-secondary btn-sm fw-semibold rounded-pill px-3 shadow-sm">
+          <i class="bi bi-house-door-fill me-1"></i> Início
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main-container">
+
+    <!-- PAINEL DE CONFIGURAÇÃO DA SALA E TURMA -->
+    <div class="card p-4">
+      <div class="card-header-custom">
+        <div>
+          <h5 class="fw-bold m-0 text-dark">
+            <i class="bi bi-grid-3x3-gap-fill text-primary me-2"></i>1. Configurar Turma, PDT e Dimensões da Sala
+          </h5>
+          <small class="text-muted">Selecione a série para puxar o PDT e os alunos automaticamente, escolha a quantidade de filas e monte o mapa.</small>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <span class="badge bg-light text-dark border px-3 py-2" id="contadorAlocados">0 / 0 Alunos Alocados</span>
+          <button class="btn btn-outline-danger btn-sm fw-bold" id="btnLimparTudo" onclick="limparMapeamentoInteiro()" style="display:none;">
+            <i class="bi bi-trash3 me-1"></i>Limpar Lugares
+          </button>
+        </div>
+      </div>
+
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-sm-6 col-md-3">
+          <label class="form-label">Série / Turma</label>
+          <select id="selectSerie" class="form-select" onchange="aoSelecionarSerie()">
+            <option value="">Carregando séries...</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-sm-6 col-md-3">
+          <label class="form-label">Professor Diretor de Turma (PDT)</label>
+          <input type="text" id="inputPdtAuto" class="form-control bg-light fw-bold text-success" readonly placeholder="Selecione a Série...">
+        </div>
+
+        <div class="col-6 col-sm-4 col-md-2">
+          <label class="form-label" title="Quantidade de filas lado a lado (Horizontal)">Filas (Colunas)</label>
+          <select id="selectColunas" class="form-select" onchange="gerarGradeMapeamento(true)">
+            <option value="3">3 Filas</option>
+            <option value="4">4 Filas</option>
+            <option value="5" selected>5 Filas (Padrão)</option>
+            <option value="6">6 Filas</option>
+            <option value="7">7 Filas</option>
+            <option value="8">8 Filas</option>
+          </select>
+        </div>
+
+        <div class="col-6 col-sm-4 col-md-2">
+          <label class="form-label" title="Quantidade de carteiras em cada fila (Vertical)">Carteiras por Fila</label>
+          <select id="selectLinhas" class="form-select" onchange="gerarGradeMapeamento(true)">
+            <option value="4">4 Carteiras</option>
+            <option value="5">5 Carteiras</option>
+            <option value="6">6 Carteiras</option>
+            <option value="7" selected>7 Carteiras</option>
+            <option value="8">8 Carteiras</option>
+            <option value="9">9 Carteiras</option>
+            <option value="10">10 Carteiras</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-sm-4 col-md-2 d-grid">
+          <button class="btn btn-tema py-2" onclick="gerarGradeMapeamento(true)">
+            <i class="bi bi-layout-wtf me-1"></i>Montar Sala
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ÁREA DO MAPEAMENTO VISUAL (QUADROS 3X4) -->
+    <div class="card p-4" id="cardSalaAula" style="display: none;">
+      <div class="card-header-custom">
+        <div>
+          <h5 class="fw-bold m-0 text-dark" id="tituloMapaTurma">
+            <i class="bi bi-person-bounding-box text-success me-2"></i>Planta da Sala de Aula
+          </h5>
+          <small class="text-muted" id="subtituloUltimoSave">Clique na lista suspensa abaixo de cada quadro 3x4 para escolher o aluno.</small>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <button class="btn btn-outline-primary btn-sm fw-bold px-3" onclick="preencherOrdemAlfabetica()">
+            <i class="bi bi-sort-alpha-down me-1"></i>Auto-Preencher (A-Z)
+          </button>
+          <button class="btn btn-tema btn-sm fw-bold px-3" onclick="salvarMapeamentoNoBanco()">
+            <i class="bi bi-cloud-arrow-up-fill me-1"></i>Salvar no Banco
+          </button>
+          <button class="btn btn-danger btn-sm fw-bold px-3" onclick="baixarPdfMapeamento()">
+            <i class="bi bi-file-earmark-pdf-fill me-1"></i>Baixar PDF com Fotos 3x4
+          </button>
+        </div>
+      </div>
+
+      <!-- Barra representando a Lousa e Mesa do Professor -->
+      <div class="frente-sala-bar">
+        <i class="bi bi-easel2-fill me-2"></i>QUADRO BRANCO / MESA DO PROFESSOR (FRENTE DA SALA)
+      </div>
+
+      <!-- Grade Dinâmica de Filas x Carteiras -->
+      <div class="sala-scroll-wrapper">
+        <div id="containerCabecalhoFilas" class="grid-mapeamento mb-2"></div>
+        <div id="containerGradeCarteiras" class="grid-mapeamento"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer class="footer-custom">
+    <strong>© <span id="anoAtual"></span> EEMTI Agostinho Neres Portela.</strong> Todos os direitos reservados.
+  </footer>
+
+  <script>
+    // INTERCEPTADOR AUTOMÁTICO DE AUDITORIA: Injeta o nome do usuário logado em todas as ações
+    const _fetchOriginal = window.fetch;
+    window.fetch = function(url, options) {
+      if (options && options.method === 'POST' && typeof options.body === 'string') {
+        try {
+          const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+          const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
+          let bodyObj = JSON.parse(options.body);
+          if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
+          options.body = JSON.stringify(bodyObj);
+        } catch (e) {}
+      }
+      return _fetchOriginal(url, options);
+    };
+
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+
+    const API_URL = "https://script.google.com/macros/s/AKfycbyNedpZQsNt5lzHtrCSRfC4bWFEuCHHkZ4ygbm-DDm0NUBVARwS5GNFMu2zB3WutFE/exec";
+    const AVATAR_PADRAO = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+
+    let todosAlunosEscola = [];
+    let alunosDaSerieAtual = [];
+    let mapaPdtPorSerie = {};
+
+    // Guarda quem está sentado em cada posição: { "F1-C1": "NOME DO ALUNO", "F2-C1": "..." }
+    let posicoesOcupadas = {};
+
+    window.onload = async function() {
+      const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+      if (u) {
+        let nomeProf = (u.nome || u.usuario?.nome || u.col1 || "Usuário").toUpperCase();
+        const elUser = document.getElementById('nomeUsuarioUi');
+        if (elUser) elUser.innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeProf}`;
+      }
+
+      Swal.fire({
+        title: 'Carregando Turmas, PDTs e Alunos...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      try {
+        const [resAlunos, resPdt, resSeries] = await Promise.all([
+          fetch(API_URL + "?v=" + new Date().getTime(), { method: 'POST', body: JSON.stringify({ action: 'getFiltrosOcorrencias' }) }).then(r => r.json()),
+          fetch(API_URL + "?v=" + new Date().getTime(), { method: 'POST', body: JSON.stringify({ action: 'listarPDT' }) }).then(r => r.json()).catch(() => ({ lista: [] })),
+          fetch(API_URL + "?v=" + new Date().getTime(), { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'SERIE' }) }).then(r => r.json()).catch(() => ({ lista: [] }))
+        ]);
+
+        if (resAlunos && Array.isArray(resAlunos.alunos)) {
+          todosAlunosEscola = resAlunos.alunos;
+        }
+
+        if (resPdt && Array.isArray(resPdt.lista)) {
+          resPdt.lista.forEach(item => {
+            if (item.serie) {
+              mapaPdtPorSerie[String(item.serie).trim().toUpperCase()] = item.professor || "Não atribuído";
+            }
+          });
+        }
+
+        let seriesSet = new Set();
+        if (resSeries && Array.isArray(resSeries.lista)) {
+          resSeries.lista.forEach(s => {
+            let nomeS = String(s.col2 || s.col1 || "").trim().toUpperCase();
+            if (nomeS && !nomeS.includes("SÉRIE") && !nomeS.includes("SERIE")) seriesSet.add(nomeS);
+          });
+        }
+        todosAlunosEscola.forEach(a => {
+          let s = String(a.serie || "").trim().toUpperCase();
+          if (s && s !== "TRANSFERIDO") seriesSet.add(s);
+        });
+
+        const selSerie = document.getElementById('selectSerie');
+        let htmlSeries = '<option value="">Selecione a Série / Turma...</option>';
+        Array.from(seriesSet).sort().forEach(s => {
+          htmlSeries += `<option value="${s}">${s}</option>`;
+        });
+        selSerie.innerHTML = htmlSeries;
+
+        Swal.close();
+      } catch (e) {
+        console.error(e);
+        Swal.fire('Erro', 'Não foi possível carregar as turmas e alunos.', 'error');
+      }
+    };
+
+    async function aoSelecionarSerie() {
+      const serie = document.getElementById('selectSerie').value;
+      const inputPdt = document.getElementById('inputPdtAuto');
+
+      if (!serie) {
+        inputPdt.value = "";
+        document.getElementById('cardSalaAula').style.display = 'none';
+        document.getElementById('btnLimparTudo').style.display = 'none';
+        return;
+      }
+
+      // 1. Puxa automaticamente o PDT da Série
+      const pdt = mapaPdtPorSerie[serie.toUpperCase()] || "Não atribuído";
+      inputPdt.value = pdt;
+
+      // 2. Filtra os alunos pertencentes a esta Série
+      alunosDaSerieAtual = todosAlunosEscola
+        .filter(a => String(a.serie || "").trim().toUpperCase() === serie.toUpperCase())
+        .sort((a, b) => a.nome.localeCompare(b.nome));
+
+      posicoesOcupadas = {};
+
+      // 3. Verifica se já existe um mapeamento salvo no banco (ou no cache local) para esta turma
+      Swal.fire({
+        title: 'Buscando Mapeamento da Turma...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      let carregouDoBanco = false;
+      try {
+        const resMapa = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'buscarMapeamentoSala', serie: serie })
+        }).then(r => r.json());
+
+        if (resMapa && resMapa.success && resMapa.encontrado && resMapa.dados) {
+          document.getElementById('selectColunas').value = resMapa.dados.colunas || 5;
+          document.getElementById('selectLinhas').value = resMapa.dados.linhas || 7;
+          posicoesOcupadas = resMapa.dados.posicoes || {};
+          document.getElementById('subtituloUltimoSave').innerText =
+            `Última atualização em: ${resMapa.dados.ultimaAtualizacao || '-'} por ${resMapa.dados.atualizadoPor || 'Sistema'}`;
+          carregouDoBanco = true;
+        }
+      } catch (e) {}
+
+      if (!carregouDoBanco) {
+        const cacheLocal = localStorage.getItem(`mapeamento_sala_${serie}`);
+        if (cacheLocal) {
+          try {
+            const obj = JSON.parse(cacheLocal);
+            document.getElementById('selectColunas').value = obj.colunas || 5;
+            document.getElementById('selectLinhas').value = obj.linhas || 7;
+            posicoesOcupadas = obj.posicoes || {};
+            document.getElementById('subtituloUltimoSave').innerText = `Carregado do armazenamento local.`;
+          } catch (e) {}
+        } else {
+          document.getElementById('subtituloUltimoSave').innerText = `Novo mapeamento — selecione os alunos abaixo de cada quadro 3x4.`;
+        }
+      }
+
+      Swal.close();
+      gerarGradeMapeamento(true);
+    }
+
+    function gerarGradeMapeamento(manterAlocados) {
+      const serie = document.getElementById('selectSerie').value;
+      if (!serie) {
+        return Swal.fire('Atenção', 'Selecione primeiro a Série / Turma.', 'warning');
+      }
+
+      const numColunas = parseInt(document.getElementById('selectColunas').value, 10) || 5;
+      const numLinhas = parseInt(document.getElementById('selectLinhas').value, 10) || 7;
+
+      if (!manterAlocados) {
+        posicoesOcupadas = {};
+      }
+
+      const pdt = document.getElementById('inputPdtAuto').value;
+      document.getElementById('tituloMapaTurma').innerHTML =
+        `<i class="bi bi-person-bounding-box text-success me-2"></i>Mapeamento: ${serie} <span class="badge bg-teal ms-2" style="background-color:#0f766e;">PDT: ${pdt}</span>`;
+
+      const containerHeaders = document.getElementById('containerCabecalhoFilas');
+      const containerGrade = document.getElementById('containerGradeCarteiras');
+
+      containerHeaders.style.gridTemplateColumns = `repeat(${numColunas}, minmax(155px, 1fr))`;
+      containerGrade.style.gridTemplateColumns = `repeat(${numColunas}, minmax(155px, 1fr))`;
+
+      // Cabeçalho das Filas (Fila 1, Fila 2...)
+      let htmlHeader = '';
+      for (let c = 1; c <= numColunas; c++) {
+        htmlHeader += `<div class="header-fila"><i class="bi bi-distribute-vertical me-1"></i>FILA ${c}</div>`;
+      }
+      containerHeaders.innerHTML = htmlHeader;
+
+      // Gera as carteiras (Linha por Linha, Coluna por Coluna)
+      let htmlCarteiras = '';
+      for (let l = 1; l <= numLinhas; l++) {
+        for (let c = 1; c <= numColunas; c++) {
+          const posKey = `F${c}-C${l}`;
+          htmlCarteiras += `
+            <div class="carteira-card" id="card_${posKey}">
+              <span class="carteira-badge-pos">Fila ${c} • ${l}ª Cart.</span>
+              <button type="button" class="btn-limpar-assento" onclick="removerAlunoDaCarteira('${posKey}')" title="Desocupar esta carteira">
+                <i class="bi bi-x-lg"></i>
+              </button>
+
+              <!-- Quadro Foto 3x4 -->
+              <div class="moldura-3x4" id="moldura_${posKey}">
+                <div class="placeholder-3x4">
+                  <i class="bi bi-person-bounding-box"></i>
+                  Foto 3x4<br>Vazio
+                </div>
+              </div>
+
+              <!-- Lista Suspensa com os Alunos da Série -->
+              <select class="select-aluno-carteira" id="sel_${posKey}" onchange="aoEscolherAlunoNaCarteira('${posKey}', this)">
+                <option value="">-- Selecionar Aluno --</option>
+              </select>
+            </div>`;
+        }
+      }
+
+      containerGrade.innerHTML = htmlCarteiras;
+      document.getElementById('cardSalaAula').style.display = 'block';
+      document.getElementById('btnLimparTudo').style.display = 'inline-block';
+
+      atualizarInterfaceCarteiras();
+    }
+
+    // Valida se o aluno já foi escolhido noutra posição e mostra o aviso!
+    function aoEscolherAlunoNaCarteira(posKey, selectEl) {
+      const alunoEscolhido = selectEl.value;
+
+      if (!alunoEscolhido) {
+        delete posicoesOcupadas[posKey];
+        salvarCacheLocal();
+        atualizarInterfaceCarteiras();
+        return;
+      }
+
+      // Verifica se este aluno já está em QUALQUER outra posição da sala
+      for (const [outraPos, nomeOcupante] of Object.entries(posicoesOcupadas)) {
+        if (outraPos !== posKey && nomeOcupante === alunoEscolhido) {
+          const partes = outraPos.replace('F', '').split('-C');
+          const filaOcupada = partes[0];
+          const carteiraOcupada = partes[1];
+
+          // Reverte imediatamente a seleção duplicada
+          selectEl.value = posicoesOcupadas[posKey] || "";
+
+          Swal.fire({
+            title: 'Aluno já Alocado!',
+            html: `O(a) aluno(a) <b>${alunoEscolhido}</b> já foi selecionado(a) na <b>Fila ${filaOcupada} (${carteiraOcupada}ª Carteira)</b>.<br><br>Por favor, escolha outro aluno ou remova-o da posição anterior primeiro.`,
+            icon: 'warning',
+            confirmButtonColor: '#0f766e'
+          });
+          return;
+        }
+      }
+
+      posicoesOcupadas[posKey] = alunoEscolhido;
+      salvarCacheLocal();
+      atualizarInterfaceCarteiras();
+    }
+
+    function removerAlunoDaCarteira(posKey) {
+      delete posicoesOcupadas[posKey];
+      salvarCacheLocal();
+      atualizarInterfaceCarteiras();
+    }
+
+    function atualizarInterfaceCarteiras() {
+      const numColunas = parseInt(document.getElementById('selectColunas').value, 10) || 5;
+      const numLinhas = parseInt(document.getElementById('selectLinhas').value, 10) || 7;
+
+      // Descobre todos os alunos já alocados em posições visíveis da grade atual
+      const mapaOndeEsta = {};
+      for (let l = 1; l <= numLinhas; l++) {
+        for (let c = 1; c <= numColunas; c++) {
+          const pk = `F${c}-C${l}`;
+          if (posicoesOcupadas[pk]) {
+            mapaOndeEsta[posicoesOcupadas[pk]] = `Fila ${c} - ${l}ª Cart.`;
+          }
+        }
+      }
+
+      // Atualiza cada carteira (Foto 3x4 + Select com indicação de quem já está alocado)
+      for (let l = 1; l <= numLinhas; l++) {
+        for (let c = 1; c <= numColunas; c++) {
+          const posKey = `F${c}-C${l}`;
+          const cardEl = document.getElementById(`card_${posKey}`);
+          const molduraEl = document.getElementById(`moldura_${posKey}`);
+          const selectEl = document.getElementById(`sel_${posKey}`);
+          if (!cardEl || !molduraEl || !selectEl) continue;
+
+          const alunoAtual = posicoesOcupadas[posKey] || "";
+
+          // Popula o Select mantendo todos os alunos clicáveis (para disparar o aviso caso tente repetir)
+          let htmlOptions = '<option value="">-- Vazio --</option>';
+          alunosDaSerieAtual.forEach(al => {
+            const isSelecionadoAqui = (al.nome === alunoAtual);
+            const jaAlocadoEmOutro = (!isSelecionadoAqui && mapaOndeEsta[al.nome]);
+            const sufixoAlocado = jaAlocadoEmOutro ? ` (✓ ${mapaOndeEsta[al.nome]})` : '';
+            htmlOptions += `<option value="${al.nome}" ${isSelecionadoAqui ? 'selected' : ''}>${al.nome}${sufixoAlocado}</option>`;
+          });
+          selectEl.innerHTML = htmlOptions;
+
+          // Atualiza a Moldura 3x4
+          if (alunoAtual) {
+            cardEl.classList.add('ocupada');
+            const objAluno = alunosDaSerieAtual.find(a => a.nome === alunoAtual);
+            const urlFoto = (objAluno && objAluno.foto && objAluno.foto.includes('http')) ? objAluno.foto : AVATAR_PADRAO;
+            molduraEl.innerHTML = `<img src="${urlFoto}" alt="${alunoAtual}" onerror="this.src='${AVATAR_PADRAO}'">`;
+          } else {
+            cardEl.classList.remove('ocupada');
+            molduraEl.innerHTML = `
+              <div class="placeholder-3x4">
+                <i class="bi bi-person-bounding-box"></i>
+                Foto 3x4<br>Vazio
+              </div>`;
+          }
+        }
+      }
+
+      const qtdAlocados = Object.keys(mapaOndeEsta).length;
+      document.getElementById('contadorAlocados').innerText = `${qtdAlocados} / ${alunosDaSerieAtual.length} Alunos da Turma Alocados`;
+    }
+
+    function preencherOrdemAlfabetica() {
+      const numColunas = parseInt(document.getElementById('selectColunas').value, 10) || 5;
+      const numLinhas = parseInt(document.getElementById('selectLinhas').value, 10) || 7;
+
+      posicoesOcupadas = {};
+      let idxAluno = 0;
+
+      // Preenche fila por fila
+      for (let c = 1; c <= numColunas; c++) {
+        for (let l = 1; l <= numLinhas; l++) {
+          if (idxAluno < alunosDaSerieAtual.length) {
+            posicoesOcupadas[`F${c}-C${l}`] = alunosDaSerieAtual[idxAluno].nome;
+            idxAluno++;
+          }
+        }
+      }
+
+      salvarCacheLocal();
+      atualizarInterfaceCarteiras();
+    }
+
+    async function limparMapeamentoInteiro() {
+      const conf = await Swal.fire({
+        title: 'Limpar todas as carteiras?',
+        text: 'Isso removerá os alunos alocados na tela atual.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Sim, limpar tudo',
+        cancelButtonText: 'Cancelar'
+      });
+
+      if (conf.isConfirmed) {
+        posicoesOcupadas = {};
+        salvarCacheLocal();
+        atualizarInterfaceCarteiras();
+      }
+    }
+
+    function salvarCacheLocal() {
+      const serie = document.getElementById('selectSerie').value;
+      if (!serie) return;
+      const dados = {
+        serie: serie,
+        pdt: document.getElementById('inputPdtAuto').value,
+        colunas: parseInt(document.getElementById('selectColunas').value, 10),
+        linhas: parseInt(document.getElementById('selectLinhas').value, 10),
+        posicoes: posicoesOcupadas
+      };
+      localStorage.setItem(`mapeamento_sala_${serie}`, JSON.stringify(dados));
+    }
+
+    async function salvarMapeamentoNoBanco() {
+      const serie = document.getElementById('selectSerie').value;
+      if (!serie) return;
+
+      const dadosSalvar = {
+        serie: serie,
+        pdt: document.getElementById('inputPdtAuto').value,
+        colunas: parseInt(document.getElementById('selectColunas').value, 10),
+        linhas: parseInt(document.getElementById('selectLinhas').value, 10),
+        posicoes: posicoesOcupadas
+      };
+
+      salvarCacheLocal();
+
+      Swal.fire({
+        title: 'Salvando Mapeamento na Planilha...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'salvarMapeamentoSala', dados: dadosSalvar })
+        }).then(r => r.json());
+
+        if (res && res.success) {
+          Swal.fire({
+            title: 'Salvo com Sucesso!',
+            text: res.msg || 'O mapeamento da sala foi salvo no banco de dados!',
+            icon: 'success',
+            confirmButtonColor: '#0f766e'
+          });
+        } else {
+          Swal.fire({
+            title: 'Salvo no Dispositivo!',
+            text: 'O mapeamento ficou guardado localmente (verifique se a função salvarMapeamentoSala já foi adicionada no codigo.gs).',
+            icon: 'info',
+            confirmButtonColor: '#0f766e'
+          });
+        }
+      } catch (e) {
+        Swal.fire('Salvo Localmente', 'Sem conexão com o servidor; o mapa foi guardado neste navegador.', 'info');
+      }
+    }
+
+    function carregarImagemBase64(url) {
+      return new Promise((resolve) => {
+        if (!url) return resolve(null);
+        let xhr = new XMLHttpRequest();
+        xhr.onload = function() {
+          let reader = new FileReader();
+          reader.onloadend = function() { resolve(reader.result); };
+          reader.onerror = function() { resolve(null); };
+          reader.readAsDataURL(xhr.response);
+        };
+        xhr.onerror = function() { resolve(null); };
+        xhr.open('GET', url);
+        xhr.responseType = 'blob';
+        xhr.send();
+      });
+    }
+
+    // GERA O PDF DO MAPEAMENTO EM MODO PAISAGEM COM OS QUADROS 3X4 E FOTOS
+    async function baixarPdfMapeamento() {
+      const serie = document.getElementById('selectSerie').value;
+      const pdt = document.getElementById('inputPdtAuto').value;
+      const numColunas = parseInt(document.getElementById('selectColunas').value, 10) || 5;
+      const numLinhas = parseInt(document.getElementById('selectLinhas').value, 10) || 7;
+
+      Swal.fire({
+        title: 'Gerando Mapa de Sala em PDF...',
+        text: 'Processando fotos 3x4 e posicionamento das carteiras...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('landscape', 'mm', 'a4'); // 297 x 210 mm
+
+        // Cabeçalho Institucional
+        const logoBase64 = await carregarImagemBase64('LOGO-removebg-preview.png');
+        if (logoBase64) {
+          try { doc.addImage(logoBase64, 'PNG', 12, 7, 18, 18); } catch (e) {}
+        }
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(15, 118, 110);
+        doc.text("MAPEAMENTO OFICIAL DE SALA DE AULA — E.E.M.T.I AGOSTINHO NERES PORTELA", 33, 13);
+
+        doc.setFontSize(9.5);
+        doc.setTextColor(30, 41, 59);
+        doc.text(`Série / Turma: ${serie}   |   Professor Diretor de Turma (PDT): ${pdt}   |   Layout: ${numColunas} Filas x ${numLinhas} Carteiras`, 33, 19);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Emitido em: ${new Date().toLocaleDateString('pt-BR')}`, 285, 13, { align: 'right' });
+
+        // Faixa indicando o Quadro / Frente da Sala
+        doc.setFillColor(30, 41, 59);
+        doc.roundedRect(65, 22, 167, 6, 1.5, 1.5, 'F');
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.setTextColor(255, 255, 255);
+        doc.text("QUADRO BRANCO / MESA DO PROFESSOR (FRENTE DA SALA)", 148.5, 26, { align: 'center' });
+
+        // Cálculo dinâmico das medidas para caber todas as filas e carteiras perfeitamente na folha A4 Paisagem
+        const margemEsq = 12;
+        const larguraUtil = 273; // 297 - 24
+        const topoGrade = 31;
+        const alturaUtil = 168;  // 210 - 42
+
+        const espacoX = 3;
+        const espacoY = 2.5;
+        const larguraCard = (larguraUtil - (espacoX * (numColunas - 1))) / numColunas;
+        const alturaCard = (alturaUtil - 7 - (espacoY * (numLinhas - 1))) / numLinhas;
+
+        // Desenha os Títulos das Filas
+        for (let c = 1; c <= numColunas; c++) {
+          let xFila = margemEsq + (c - 1) * (larguraCard + espacoX);
+          doc.setFillColor(15, 118, 110);
+          doc.roundedRect(xFila, topoGrade, larguraCard, 5.5, 1, 1, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(7.5);
+          doc.setFont("helvetica", "bold");
+          doc.text(`FILA ${c}`, xFila + larguraCard / 2, topoGrade + 3.8, { align: 'center' });
+        }
+
+        // Pré-carrega fotos dos alunos alocados
+        const cacheFotos = {};
+        for (const nomeAl of Object.values(posicoesOcupadas)) {
+          if (nomeAl && !cacheFotos[nomeAl]) {
+            const objAl = alunosDaSerieAtual.find(a => a.nome === nomeAl);
+            if (objAl && objAl.foto && objAl.foto.includes('http')) {
+              cacheFotos[nomeAl] = await carregarImagemBase64(objAl.foto);
+            }
+          }
+        }
+
+        // Desenha cada Carteira com a Foto 3x4 e o Nome abaixo
+        const inicioYCarteiras = topoGrade + 7;
+
+        for (let l = 1; l <= numLinhas; l++) {
+          for (let c = 1; c <= numColunas; c++) {
+            const posKey = `F${c}-C${l}`;
+            const nomeOcupante = posicoesOcupadas[posKey] || "";
+
+            const x = margemEsq + (c - 1) * (larguraCard + espacoX);
+            const y = inicioYCarteiras + (l - 1) * (alturaCard + espacoY);
+
+            // Caixa da Carteira
+            if (nomeOcupante) {
+              doc.setDrawColor(15, 118, 110);
+              doc.setFillColor(240, 253, 244);
+            } else {
+              doc.setDrawColor(203, 213, 225);
+              doc.setFillColor(255, 255, 255);
+            }
+            doc.setLineWidth(0.35);
+            doc.roundedRect(x, y, larguraCard, alturaCard, 1.5, 1.5, 'FD');
+
+            // Número da carteira no canto superior esquerdo
+            doc.setFontSize(5.5);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(100, 116, 139);
+            doc.text(`${l}ª Cart.`, x + 1.5, y + 3);
+
+            // Moldura 3x4 centralizada dentro da carteira
+            const altFoto = Math.min(alturaCard - 7.5, 15);
+            const largFoto = altFoto * 0.75; // Proporção 3x4
+            const xFoto = x + (larguraCard - largFoto) / 2;
+            const yFoto = y + 1.2;
+
+            doc.setDrawColor(180, 190, 200);
+            doc.setFillColor(248, 250, 252);
+            doc.rect(xFoto, yFoto, largFoto, altFoto, 'FD');
+
+            if (nomeOcupante && cacheFotos[nomeOcupante]) {
+              try {
+                doc.addImage(cacheFotos[nomeOcupante], 'JPEG', xFoto + 0.2, yFoto + 0.2, largFoto - 0.4, altFoto - 0.4);
+              } catch (e) {}
+            } else if (nomeOcupante) {
+              doc.setFontSize(5);
+              doc.setTextColor(15, 118, 110);
+              doc.text("3x4", xFoto + largFoto / 2, yFoto + altFoto / 2 + 1, { align: 'center' });
+            }
+
+            // Nome do Aluno abaixo da foto 3x4
+            doc.setFontSize(5.8);
+            doc.setFont("helvetica", nomeOcupante ? "bold" : "normal");
+            doc.setTextColor(nomeOcupante ? 15 : 160, nomeOcupante ? 23 : 174, nomeOcupante ? 42 : 192);
+
+            const textoNome = nomeOcupante || "LIVRE";
+            const linhasNome = doc.splitTextToSize(textoNome, larguraCard - 2);
+            doc.text(linhasNome.slice(0, 2), x + larguraCard / 2, yFoto + altFoto + 2.5, { align: 'center' });
+          }
+        }
+
+        Swal.close();
+        doc.save(`Mapeamento_Sala_${serie.replace(/\s+/g, '_')}.pdf`);
+      } catch (err) {
+        console.error(err);
+        Swal.close();
+        Swal.fire('Erro', 'Não foi possível gerar o PDF do mapeamento.', 'error');
+      }
+    }
+  </script>
+</body>
+</html>
