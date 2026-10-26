@@ -5,39 +5,32 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Relatório de Ocorrências da Turma - EEMTI Agostinho Neres</title>
-  
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
+  
   <!-- Bibliotecas para gerar o PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    
     body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
     .watermark-bg { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 50vw; max-width: 550px; opacity: 0.05; z-index: -1; pointer-events: none; }
-    
     .navbar-custom { background-color: transparent; padding: 15px 20px; border-bottom: 1px solid rgba(0,0,0,0.05); }
     .navbar-brand { font-weight: 700; font-size: 1.5rem; color: #1e293b !important; display: flex; align-items: center; gap: 15px; }
     .sub-text { font-size: 0.8rem; font-weight: 500; color: #64748b; margin-top: -3px; }
     .logo-escola { height: 55px; object-fit: contain; mix-blend-mode: multiply; }
-    
-    .main-container { padding: 30px 15px; max-width: 1000px; margin: 0 auto; width: 100%; flex: 1; }
+    .main-container { padding: 30px 15px; max-width: 1050px; margin: 0 auto; width: 100%; flex: 1; }
     .card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); background: rgba(255, 255, 255, 0.95); margin-bottom: 25px; }
     .card-header-custom { border-bottom: 1px solid #eaeaea; padding-bottom: 15px; margin-bottom: 20px; }
-    
     .btn-tema { background-color: #0f766e; color: white; border: none; transition: 0.2s; }
     .btn-tema:hover { background-color: #0d645e; color: white; }
-    
     .form-label { font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 5px; }
     .form-control, .form-select { border-color: #e2e8f0; border-radius: 6px; padding: 10px 15px; font-size: 0.95rem; }
     .form-control:focus, .form-select:focus { border-color: #0f766e; box-shadow: 0 0 0 0.2rem rgba(15, 118, 110, 0.15); }
   </style>
-
   <script>
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
     if (!usuarioLogado) window.location.href = 'login.html';
@@ -65,15 +58,14 @@
   </nav>
 
   <div class="main-container">
-    
     <!-- Filtros -->
     <div class="card p-4">
-      <div class="card-header-custom">
+      <div class="card-header-custom d-flex justify-content-between align-items-center">
         <h4 class="m-0 text-dark fs-5 fw-bold"><i class="bi bi-file-earmark-text text-primary me-2"></i>Gerar Relatório por Turma</h4>
+        <span class="badge bg-teal text-white p-2 d-none" style="background-color: #0f766e;" id="badgePdtTurma">PDT: -</span>
       </div>
-
       <div class="row g-3 align-items-end">
-        <div class="col-md-3">
+        <div class="col-md-2">
           <label class="form-label">Ano Letivo</label>
           <select id="filtroAno" class="form-select">
             <option value="2026" selected>2026</option>
@@ -81,20 +73,24 @@
             <option value="2024">2024</option>
           </select>
         </div>
-        <div class="col-md-5">
+        <div class="col-md-3">
           <label class="form-label">Série / Turma</label>
-          <select id="filtroSerie" class="form-select">
+          <select id="filtroSerie" class="form-select" onchange="aoMudarSerieTurma()">
             <option value="">A carregar turmas...</option>
           </select>
         </div>
         <div class="col-md-3">
-          <label class="form-label">Bimestre (Automático)</label>
+          <label class="form-label">Professor PDT (Automático)</label>
+          <input type="text" id="inputPdtAuto" class="form-control bg-light fw-bold text-dark" readonly placeholder="Selecione a série...">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Período da Tabela</label>
           <select id="filtroBimestre" class="form-select">
             <option value="TODOS">Todos os Bimestres (Ano Todo)</option>
           </select>
         </div>
         <div class="col-md-1">
-          <button class="btn btn-tema w-100 fw-bold py-2" onclick="gerarPdfRelatorioTurma()"><i class="bi bi-file-pdf-fill"></i></button>
+          <button class="btn btn-tema w-100 fw-bold py-2" onclick="gerarPdfRelatorioTurma()" title="Baixar PDF da Turma"><i class="bi bi-file-pdf-fill"></i></button>
         </div>
       </div>
     </div>
@@ -103,18 +99,19 @@
     <div class="card p-4 text-center text-muted py-5">
       <i class="bi bi-printer display-4 text-primary mb-3"></i>
       <h5 class="fw-bold text-dark">Pronto para gerar relatórios</h5>
-      <p class="small mb-0">Primeira página preenchida totalmente com ocorrências, excedentes direcionados para a página 2, e assinaturas exclusivas na página 2 próximas ao rodapé.</p>
+      <p class="small mb-0">O cabeçalho de cada aluno exibe automaticamente o PDT da turma e a pontuação fixa atualizada de todos os bimestres.</p>
     </div>
-
   </div>
 
   <script>
     const API_URL = "https://script.google.com/macros/s/AKfycbyNedpZQsNt5lzHtrCSRfC4bWFEuCHHkZ4ygbm-DDm0NUBVARwS5GNFMu2zB3WutFE/exec";
     let cacheBimestres = [];
+    let mapaPdtPorSerie = {};
 
     function formatarDataCurta(dataString) {
       if (!dataString) return '-';
       try {
+        if (typeof dataString === 'string' && dataString.includes('/')) return dataString.split(' ')[0];
         let d = new Date(dataString);
         if (!isNaN(d.getTime())) return d.toLocaleDateString('pt-BR');
         if (typeof dataString === 'string') return dataString.split(' ')[0];
@@ -136,39 +133,53 @@
     function parseDataBimestre(dataString, isFinal) {
       if (!dataString) return 0;
       if (typeof dataString === 'string' && dataString.includes('-')) {
-        let p = dataString.split('T')[0].split('-'); 
+        let p = dataString.split('T')[0].split('-');
         if (p.length === 3) {
           if (isFinal) return new Date(p[0], p[1] - 1, p[2], 23, 59, 59).getTime();
           return new Date(p[0], p[1] - 1, p[2], 0, 0, 0).getTime();
         }
       }
+      if (typeof dataString === 'string' && dataString.includes('/')) {
+        let p = dataString.split(' ')[0].split('/');
+        if (p.length === 3) {
+          if (isFinal) return new Date(p[2], p[1] - 1, p[0], 23, 59, 59).getTime();
+          return new Date(p[2], p[1] - 1, p[0], 0, 0, 0).getTime();
+        }
+      }
       return new Date(dataString).getTime();
     }
 
-    window.onload = async function() {const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
-  if (u) {
-    let nomeProf = u.nome || u.usuario?.nome || u.col1 || "Usuário";
-    const elUser = document.getElementById('nomeUsuarioUi');
-    if (elUser) {
-      elUser.innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeProf}`;
-    }
-  }
+    window.onload = async function() {
+      const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+      if (u) {
+        let nomeProf = u.nome || u.usuario?.nome || u.col1 || "Usuário";
+        const elUser = document.getElementById('nomeUsuarioUi');
+        if (elUser) elUser.innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeProf}`;
+      }
+
       try {
         const reqSeries = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'SERIE' }) }).then(r => r.json());
         const reqBim = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'BIMESTRE' }) }).then(r => r.json());
+        const reqPdt = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarPDT' }) }).then(r => r.json()).catch(() => null);
 
-        const [resSeries, resBim] = await Promise.all([reqSeries, reqBim]);
+        const [resSeries, resBim, resPdt] = await Promise.all([reqSeries, reqBim, reqPdt]);
+
+        if (resPdt && Array.isArray(resPdt.lista)) {
+          resPdt.lista.forEach(item => {
+            if (item.serie) mapaPdtPorSerie[String(item.serie).trim().toUpperCase()] = item.professor || "Não atribuído";
+          });
+        }
 
         let htmlSeries = '<option value="">Selecione...</option>';
-        if(resSeries.lista) {
-          resSeries.lista.sort((a, b) => a.col2.localeCompare(b.col2));
-          resSeries.lista.forEach(item => {
-            htmlSeries += `<option value="${item.col2}">${item.col2}</option>`;
+        if (resSeries.lista) {
+          let seriesUnicas = [...new Set(resSeries.lista.map(item => String(item.col2 || item.col1 || "").trim()).filter(Boolean))].sort();
+          seriesUnicas.forEach(s => {
+            htmlSeries += `<option value="${s}">${s}</option>`;
           });
         }
         document.getElementById('filtroSerie').innerHTML = htmlSeries;
 
-        if(resBim.lista) {
+        if (resBim.lista) {
           cacheBimestres = resBim.lista;
           let htmlBim = '<option value="TODOS">Todos os Bimestres (Ano Todo)</option>';
           cacheBimestres.forEach(b => {
@@ -179,12 +190,29 @@
       } catch (e) {}
     };
 
+    function aoMudarSerieTurma() {
+      const serie = document.getElementById('filtroSerie').value;
+      const inputPdt = document.getElementById('inputPdtAuto');
+      const badgePdt = document.getElementById('badgePdtTurma');
+
+      if (!serie) {
+        inputPdt.value = "";
+        badgePdt.classList.add('d-none');
+        return;
+      }
+
+      const nomePdt = mapaPdtPorSerie[String(serie).trim().toUpperCase()] || "Não atribuído";
+      inputPdt.value = nomePdt;
+      badgePdt.innerHTML = `<i class="bi bi-person-badge-fill me-1"></i>PDT da Turma: ${nomePdt}`;
+      badgePdt.classList.remove('d-none');
+    }
+
     function getBase64Image(url) {
       return new Promise((resolve) => {
         let xhr = new XMLHttpRequest();
         xhr.onload = function() {
           let reader = new FileReader();
-          reader.onloadend = function() { resolve(reader.result); }
+          reader.onloadend = function() { resolve(reader.result); };
           reader.readAsDataURL(xhr.response);
         };
         xhr.onerror = function() { resolve(null); };
@@ -197,10 +225,16 @@
     async function gerarPdfRelatorioTurma() {
       const serie = document.getElementById('filtroSerie').value;
       const bimestreSelecionado = document.getElementById('filtroBimestre').value;
+      const pdtDaTurma = mapaPdtPorSerie[String(serie).trim().toUpperCase()] || "Não atribuído";
 
       if (!serie) return Swal.fire('Atenção', 'Selecione uma série/turma.', 'warning');
 
-      Swal.fire({ title: 'A gerar relatórios da turma...', text: 'A processar ocorrências e estruturar exatamente 2 folhas por aluno...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      Swal.fire({
+        title: 'A gerar relatórios da turma...',
+        text: 'A processar ocorrências, PDT e notas fixas dos bimestres...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
 
       try {
         const reqAlunos = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getFiltrosOcorrencias' }) }).then(r => r.json());
@@ -214,10 +248,11 @@
         alunosTurma.sort((a, b) => a.nome.localeCompare(b.nome));
 
         let mapPontuacoes = {};
-        if(resPon.lista) {
+        if (resPon.lista) {
           resPon.lista.forEach(p => {
             let valorRaw = String(p.col2 || "0").replace(',', '.');
-            mapPontuacoes[p.col1.toUpperCase().trim()] = parseFloat(valorRaw);
+            let numPonto = parseFloat(valorRaw) || 0;
+            mapPontuacoes[p.col1.toUpperCase().trim()] = -Math.abs(numPonto);
           });
         }
 
@@ -229,7 +264,6 @@
 
         let dataIniMs = 0;
         let dataFimMs = 86400000000000;
-
         if (bimestreSelecionado !== "TODOS") {
           let bObj = arrayBimestres.find(b => b.col1.toUpperCase() === bimestreSelecionado.toUpperCase());
           if (bObj) {
@@ -242,21 +276,23 @@
         let alunosComOcorrencias = [];
 
         for (let aluno of alunosTurma) {
-          let ocoAluno = ocorrenciasGlobais.filter(o => (o.aluno || "").trim().toUpperCase() === aluno.nome.toUpperCase());
+          // Todas as ocorrências do aluno no ano (para o cálculo fixo das notas de todos os bimestres)
+          let todasOcoAluno = ocorrenciasGlobais.filter(o => (o.aluno || "").trim().toUpperCase() === aluno.nome.toUpperCase());
 
+          // Ocorrências filtradas apenas para a tabela caso um bimestre específico seja escolhido
+          let ocoTabela = [...todasOcoAluno];
           if (bimestreSelecionado !== "TODOS") {
-            ocoAluno = ocoAluno.filter(o => {
+            ocoTabela = todasOcoAluno.filter(o => {
               let ts = extrairTimestamp(o.data);
               if (ts === 0) return true;
               return ts >= dataIniMs && ts <= dataFimMs;
             });
           }
 
-          if (ocoAluno.length > 0) {
+          if (ocoTabela.length > 0) {
             let notasBim = {};
             arrayBimestres.forEach(b => { notasBim[b.col1] = 10.00; });
 
-            let todasOcoAluno = ocorrenciasGlobais.filter(o => (o.aluno || "").trim().toUpperCase() === aluno.nome.toUpperCase());
             todasOcoAluno.forEach(o => {
               let grav = (o.gravidade || "").trim().toUpperCase();
               let tsOco = extrairTimestamp(o.data);
@@ -270,7 +306,7 @@
 
             alunosComOcorrencias.push({
               aluno: aluno,
-              ocorrencias: ocoAluno,
+              ocorrencias: ocoTabela,
               notas: notasBim
             });
           }
@@ -289,23 +325,20 @@
 
         for (let i = 0; i < alunosComOcorrencias.length; i++) {
           let item = alunosComOcorrencias[i];
-          
-          // Função para desenhar a estrutura de cada página sem assinaturas na página 1
+
           async function desenharCabecalhoRodapePagina(numPaginaAluno) {
             if (i > 0 || numPaginaAluno === 2) doc.addPage();
 
-            // Marca d'água oficial centralizada
             if (logoBase64) {
               try {
                 doc.setGState(new doc.GState({ opacity: 0.05 }));
                 doc.addImage(logoBase64, 'PNG', 55, 80, 100, 100);
                 doc.setGState(new doc.GState({ opacity: 1.0 }));
-              } catch(e){}
+              } catch (e) {}
             }
 
-            // Cabeçalho institucional com brasão
             if (logoBase64) {
-              try { doc.addImage(logoBase64, 'PNG', 14, 10, 25, 25); } catch(e){}
+              try { doc.addImage(logoBase64, 'PNG', 14, 10, 25, 25); } catch (e) {}
             }
             doc.setFontSize(11); doc.setFont("helvetica", "bold");
             doc.text("ESCOLA DE ENSINO MÉDIO DE TEMPO INTEGRAL", 45, 17);
@@ -315,21 +348,20 @@
             doc.setLineWidth(0.5); doc.line(14, 37, 196, 37);
 
             doc.setFontSize(12); doc.setFont("helvetica", "bold");
-            doc.text("HISTÓRICO DISCIPLINAR DO ALUNO (RAC)", 105, 45, {align: 'center'});
+            doc.text("HISTÓRICO DISCIPLINAR DO ALUNO (RAC)", 105, 45, { align: 'center' });
 
-            // Retângulo dedicado para a Foto (x=162, y=42)
             doc.setLineWidth(0.3);
             doc.setFillColor(248, 250, 252);
             doc.rect(162, 42, 22, 28, 'FD');
-            
+
             if (item.aluno.foto && item.aluno.foto.includes('http')) {
               try {
                 let fotoAlunoBase64 = await getBase64Image(item.aluno.foto);
                 if (fotoAlunoBase64) doc.addImage(fotoAlunoBase64, 'JPEG', 163, 43, 20, 26);
-              } catch(e){}
+              } catch (e) {}
             }
 
-            // Nome e Série
+            // Nome, Série e PDT Automático
             doc.setFontSize(9); doc.setFont("helvetica", "bold");
             doc.text(`Aluno(a):`, 14, 50);
             doc.setFont("helvetica", "normal");
@@ -338,9 +370,9 @@
             doc.setFont("helvetica", "bold");
             doc.text(`Série:`, 14, 58);
             doc.setFont("helvetica", "normal");
-            doc.text(`${item.aluno.serie || serie}`, 26, 58);
+            doc.text(`${item.aluno.serie || serie}   |   PDT: ${pdtDaTurma}`, 26, 58);
 
-            // Resumo das Notas dos Bimestres
+            // Resumo Fixo das Notas de Todos os Bimestres
             let resumoNotas = [];
             for (const [bName, notaVal] of Object.entries(item.notas)) {
               resumoNotas.push(`${bName}: ${notaVal.toFixed(2).replace('.', ',')}`);
@@ -348,28 +380,25 @@
             if (resumoNotas.length > 0) {
               doc.setFont("helvetica", "bold");
               doc.setFontSize(8.5);
-              doc.text("Notas: " + resumoNotas.join("  |  "), 14, 67, { maxWidth: 140 });
+              doc.text("Notas Bimestrais (Fixas): " + resumoNotas.join(" | "), 14, 67, { maxWidth: 145 });
             }
 
-            // Rodapé organizado (Y = 285)
             doc.setFontSize(8); doc.setFont("helvetica", "italic");
-            doc.text(`Aluno: ${item.aluno.nome}  |  Gerado em: ${dataGeracaoStr}`, 14, 285);
-            doc.text(`Página ${numPaginaAluno} de 2`, 196, 285, {align: 'right'});
+            doc.text(`Aluno: ${item.aluno.nome} | PDT: ${pdtDaTurma} | Gerado em: ${dataGeracaoStr}`, 14, 285);
+            doc.text(`Página ${numPaginaAluno} de 2`, 196, 285, { align: 'right' });
           }
 
-          // Função para desenhar assinaturas próximo ao rodapé (Y = 265) - APENAS NA PÁGINA 2
           function desenharAssinaturasPagina2() {
             let finalY = 265;
             doc.setLineWidth(0.3);
             doc.line(20, finalY, 90, finalY);
             doc.setFontSize(9); doc.setFont("helvetica", "bold");
-            doc.text("Assinatura do Responsável", 55, finalY + 5, {align: 'center'});
+            doc.text("Assinatura do Responsável", 55, finalY + 5, { align: 'center' });
 
             doc.line(120, finalY, 190, finalY);
-            doc.text("Assinatura Professor / Gestão", 155, finalY + 5, {align: 'center'});
+            doc.text("Assinatura PDT / Gestão", 155, finalY + 5, { align: 'center' });
           }
 
-          // --- PÁGINA 1 DO ALUNO ---
           await desenharCabecalhoRodapePagina(1);
 
           let linhasOco = item.ocorrencias.map(o => [
@@ -381,49 +410,38 @@
             o.obs || '-'
           ]);
 
-          // Gerar tabela preenchendo a Página 1 por completo
           doc.autoTable({
             startY: 75,
             head: [['Data', 'Série', 'Ocorrência', 'Gravidade', 'Professor', 'Observações']],
             body: linhasOco,
             headStyles: { fillColor: [15, 118, 110] },
             styles: { fontSize: 8 },
-            columnStyles: { 2: { cellWidth: 45 }, 5: { cellWidth: 35 } },
-            // Permite que o autoTable flua naturalmente preenchendo a página 1 e transbordando para a página 2 se necessário
+            columnStyles: { 2: { cellWidth: 45 }, 5: { cellWidth: 35 } }
           });
 
-          // Verificar se o autoTable gerou uma página 2 automática devido ao excesso
           let paginaAtualFinal = doc.internal.getCurrentPageInfo().pageNumber;
           let paginaInicioAluno = i * 2 + 1;
           let totalPaginasAlunoUsadas = paginaAtualFinal - paginaInicioAluno + 1;
 
           if (totalPaginasAlunoUsadas === 1) {
-            // Se coube tudo na Página 1, adicionamos manualmente a Página 2 em branco com o título e as assinaturas
             await desenharCabecalhoRodapePagina(2);
-
             doc.setFontSize(10); doc.setFont("helvetica", "bold");
-            doc.text("REGISTROS COMPLEMENTARES E PARECER DA GESTÃO", 14, 85);
+            doc.text("REGISTROS COMPLEMENTARES E PARECER DA GESTÃO / PDT", 14, 85);
             doc.setFont("helvetica", "normal");
             doc.setFontSize(9);
             doc.text("Espaço reservado para anotações pedagógicas complementares ou termos de compromisso.", 14, 92);
-
             desenharAssinaturasPagina2();
           } else {
-            // Se transbordou para a Página 2 (ex: Expedito), vamos à página 2 gerada pelo autoTable para adicionar o título e as assinaturas no rodapé correto
             doc.setPage(paginaInicioAluno + 1);
-            
-            // Reajustar o rodapé da página 2 para garantir o padrão correto
             doc.setFontSize(8); doc.setFont("helvetica", "italic");
-            doc.text(`Aluno: ${item.aluno.nome}  |  Gerado em: ${dataGeracaoStr}`, 14, 285);
-            doc.text(`Página 2 de 2`, 196, 285, {align: 'right'});
-            
+            doc.text(`Aluno: ${item.aluno.nome} | PDT: ${pdtDaTurma} | Gerado em: ${dataGeracaoStr}`, 14, 285);
+            doc.text(`Página 2 de 2`, 196, 285, { align: 'right' });
             desenharAssinaturasPagina2();
           }
         }
 
         doc.save(`Relatorio_Turma_FrenteVerso_${serie.replace(/\s+/g, '_')}.pdf`);
         Swal.close();
-
       } catch (err) {
         console.error(err);
         Swal.close();
