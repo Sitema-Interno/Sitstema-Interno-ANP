@@ -243,7 +243,7 @@
     /* MOLDURA ESTILO FOTO 3x4 */
     .moldura-3x4 {
       width: 78px;
-      height: 104px; /* Proporção exata 3x4 */
+      height: 104px;
       border-radius: 6px;
       border: 2px dashed #cbd5e1;
       background-color: #f8fafc;
@@ -301,6 +301,32 @@
       font-weight: 700;
     }
 
+    .nome-aluno-leitura {
+      width: 100%;
+      text-align: center;
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: #0f766e;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 5px 4px;
+      min-height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1.15;
+    }
+
+    .table th {
+      background-color: #f8fafc;
+      border-bottom: 2px solid #e2e8f0;
+      color: #475569;
+      font-weight: 700;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+    }
+
     .footer-custom {
       text-align: center;
       padding: 20px;
@@ -314,6 +340,12 @@
   <script>
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
     if (!usuarioLogado) window.location.href = 'login.html';
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
   </script>
 </head>
 <body>
@@ -331,6 +363,9 @@
         </div>
       </span>
       <div class="d-flex align-items-center gap-3">
+        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2" id="statusConexaoBadge">
+          <i class="bi bi-wifi me-1"></i>Online
+        </span>
         <span class="text-muted fw-semibold small d-none d-md-block" id="nomeUsuarioUi">
           <i class="bi bi-person-circle me-1"></i>A carregar...
         </span>
@@ -343,101 +378,206 @@
 
   <div class="main-container">
 
-    <!-- PAINEL DE CONFIGURAÇÃO DA SALA E TURMA -->
-    <div class="card p-4">
-      <div class="card-header-custom">
-        <div>
-          <h5 class="fw-bold m-0 text-dark">
-            <i class="bi bi-grid-3x3-gap-fill text-primary me-2"></i>1. Configurar Turma, PDT e Dimensões da Sala
-          </h5>
-          <small class="text-muted">Selecione a série para puxar o PDT e os alunos automaticamente, escolha a quantidade de filas e monte o mapa.</small>
+    <!-- NAVEGAÇÃO POR ABAS -->
+    <ul class="nav nav-tabs mb-4" id="mapeamentoTabs" role="tablist">
+      <li class="nav-item" role="presentation" id="navItemCriarMapa">
+        <button class="nav-link active fw-bold text-dark" id="tab-criar-btn" data-bs-toggle="tab" data-bs-target="#abaCriarMapa" type="button" role="tab">
+          <i class="bi bi-grid-3x3-gap-fill text-primary me-2"></i>Criar / Editar Mapeamento (Exclusivo PDT)
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold text-dark" id="tab-salvos-btn" data-bs-toggle="tab" data-bs-target="#abaMapeamentosSalvos" type="button" role="tab" onclick="renderizarTabelaMapeamentosSalvos()">
+          <i class="bi bi-folder-check text-success me-2"></i>Mapeamentos Salvos (Consulta Todos os Professores)
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+
+      <!-- ========================================================= -->
+      <!-- ABA 1: CRIAR / EDITAR MAPEAMENTO (RESTRITO AO PDT / GESTÃO) -->
+      <!-- ========================================================= -->
+      <div class="tab-pane fade show active" id="abaCriarMapa" role="tabpanel">
+
+        <!-- Aviso caso o professor logado NÃO seja PDT de nenhuma turma -->
+        <div class="card p-5 text-center" id="cardBloqueioNaoPdt" style="display: none;">
+          <i class="bi bi-shield-lock-fill display-4 text-warning mb-3"></i>
+          <h4 class="fw-bold text-dark">Acesso de Edição Exclusivo para PDT</h4>
+          <p class="text-muted mx-auto" style="max-width: 600px;">
+            Olá, <b id="lblNomeProfBloqueio">Professor(a)</b>! A montagem e alteração do mapeamento de sala fica disponível apenas para o <b>Professor Diretor de Turma (PDT)</b> vinculado à série.
+          </p>
+          <div class="mt-2">
+            <button class="btn btn-tema px-4 py-2" onclick="irParaAbaSalvos()">
+              <i class="bi bi-eye-fill me-2"></i>Ver Mapeamentos Salvos das Turmas
+            </button>
+          </div>
         </div>
-        <div class="d-flex flex-wrap gap-2">
-          <span class="badge bg-light text-dark border px-3 py-2" id="contadorAlocados">0 / 0 Alunos Alocados</span>
-          <button class="btn btn-outline-danger btn-sm fw-bold" id="btnLimparTudo" onclick="limparMapeamentoInteiro()" style="display:none;">
-            <i class="bi bi-trash3 me-1"></i>Limpar Lugares
-          </button>
+
+        <!-- Painel de Configuração (Visível apenas para PDT da sua turma ou Gestão) -->
+        <div id="areaEdicaoPdt">
+          <div class="card p-4">
+            <div class="card-header-custom">
+              <div>
+                <h5 class="fw-bold m-0 text-dark">
+                  <i class="bi bi-sliders text-primary me-2"></i>1. Configurar Turma, PDT e Dimensões da Sala
+                </h5>
+                <small class="text-muted" id="textoAjudaPdt">Turma e PDT preenchidos automaticamente de acordo com o seu vínculo.</small>
+              </div>
+              <div class="d-flex flex-wrap gap-2">
+                <span class="badge bg-light text-dark border px-3 py-2" id="contadorAlocados">0 / 0 Alunos Alocados</span>
+                <button class="btn btn-outline-danger btn-sm fw-bold" id="btnLimparTudo" onclick="limparMapeamentoInteiro()" style="display:none;">
+                  <i class="bi bi-trash3 me-1"></i>Limpar Lugares
+                </button>
+              </div>
+            </div>
+
+            <div class="row g-3 align-items-end">
+              <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label">Série / Turma</label>
+                <select id="selectSerie" class="form-select" onchange="aoSelecionarSerie()">
+                  <option value="">Carregando séries...</option>
+                </select>
+              </div>
+
+              <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label">Professor Diretor de Turma (PDT)</label>
+                <input type="text" id="inputPdtAuto" class="form-control bg-light fw-bold text-success" readonly placeholder="Preenchimento automático...">
+              </div>
+
+              <div class="col-6 col-sm-4 col-md-2">
+                <label class="form-label" title="Quantidade de filas lado a lado">Filas (Colunas)</label>
+                <select id="selectColunas" class="form-select" onchange="gerarGradeMapeamento(true)">
+                  <option value="3">3 Filas</option>
+                  <option value="4">4 Filas</option>
+                  <option value="5" selected>5 Filas (Padrão)</option>
+                  <option value="6">6 Filas</option>
+                  <option value="7">7 Filas</option>
+                  <option value="8">8 Filas</option>
+                </select>
+              </div>
+
+              <div class="col-6 col-sm-4 col-md-2">
+                <label class="form-label" title="Quantidade de carteiras em cada fila">Carteiras por Fila</label>
+                <select id="selectLinhas" class="form-select" onchange="gerarGradeMapeamento(true)">
+                  <option value="4">4 Carteiras</option>
+                  <option value="5">5 Carteiras</option>
+                  <option value="6">6 Carteiras</option>
+                  <option value="7" selected>7 Carteiras</option>
+                  <option value="8">8 Carteiras</option>
+                  <option value="9">9 Carteiras</option>
+                  <option value="10">10 Carteiras</option>
+                </select>
+              </div>
+
+              <div class="col-12 col-sm-4 col-md-2 d-grid">
+                <button class="btn btn-tema py-2" onclick="gerarGradeMapeamento(true)">
+                  <i class="bi bi-layout-wtf me-1"></i>Montar Sala
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ÁREA DO MAPEAMENTO VISUAL (EDITÁVEL PELO PDT) -->
+          <div class="card p-4" id="cardSalaAula" style="display: none;">
+            <div class="card-header-custom">
+              <div>
+                <h5 class="fw-bold m-0 text-dark" id="tituloMapaTurma">
+                  <i class="bi bi-person-bounding-box text-success me-2"></i>Planta da Sala de Aula
+                </h5>
+                <small class="text-muted" id="subtituloUltimoSave">Clique na lista suspensa abaixo de cada quadro 3x4 para escolher o aluno.</small>
+              </div>
+              <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-outline-primary btn-sm fw-bold px-3" onclick="preencherOrdemAlfabetica()">
+                  <i class="bi bi-sort-alpha-down me-1"></i>Auto-Preencher (A-Z)
+                </button>
+                <button class="btn btn-tema btn-sm fw-bold px-3" onclick="salvarMapeamentoNoBanco()">
+                  <i class="bi bi-cloud-arrow-up-fill me-1"></i>Salvar Mapeamento
+                </button>
+                <button class="btn btn-danger btn-sm fw-bold px-3" onclick="baixarPdfMapeamentoAtual()">
+                  <i class="bi bi-file-earmark-pdf-fill me-1"></i>Baixar PDF 3x4
+                </button>
+              </div>
+            </div>
+
+            <div class="frente-sala-bar">
+              <i class="bi bi-easel2-fill me-2"></i>QUADRO BRANCO / MESA DO PROFESSOR (FRENTE DA SALA)
+            </div>
+
+            <div class="sala-scroll-wrapper">
+              <div id="containerCabecalhoFilas" class="grid-mapeamento mb-2"></div>
+              <div id="containerGradeCarteiras" class="grid-mapeamento"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- ABA 2: MAPEAMENTOS SALVOS (DISPONÍVEL OFFLINE PARA TODOS) -->
+      <!-- ========================================================= -->
+      <div class="tab-pane fade" id="abaMapeamentosSalvos" role="tabpanel">
+        <div class="card p-4">
+          <div class="card-header-custom">
+            <div>
+              <h5 class="fw-bold m-0 text-dark">
+                <i class="bi bi-journal-check text-success me-2"></i>Mapeamentos de Sala Registrados (Disponível Offline)
+              </h5>
+              <small class="text-muted">Todos os professores podem consultar o mapa da turma na tela ou baixar o PDF mesmo sem conexão com a internet.</small>
+            </div>
+            <button class="btn btn-outline-secondary btn-sm fw-semibold" onclick="sincronizarTodosMapeamentosDoServidor(true)">
+              <i class="bi bi-arrow-clockwise me-1"></i>Sincronizar Agora
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Série / Turma</th>
+                  <th>Professor PDT</th>
+                  <th class="text-center">Alunos no Mapa</th>
+                  <th>Última Atualização</th>
+                  <th>Atualizado por</th>
+                  <th class="text-end" style="width: 240px;">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyMapeamentosSalvos">
+                <tr><td colspan="6" class="text-center text-muted py-4">Carregando mapeamentos...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- VISUALIZADOR DE MAPA DE SALA SOMENTE LEITURA (PARA QUALQUER PROFESSOR VER NA AULA) -->
+        <div class="card p-4" id="cardVisualizadorConsulta" style="display: none;">
+          <div class="card-header-custom">
+            <div>
+              <h5 class="fw-bold m-0 text-dark" id="tituloVisualizadorConsulta">
+                <i class="bi bi-eye-fill text-primary me-2"></i>Visualização do Mapa da Turma
+              </h5>
+              <small class="text-muted" id="subtituloVisualizadorConsulta">-</small>
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-danger btn-sm fw-bold px-3" id="btnPdfVisualizador">
+                <i class="bi bi-file-earmark-pdf-fill me-1"></i>Baixar PDF 3x4 desta Turma
+              </button>
+              <button class="btn btn-outline-secondary btn-sm" onclick="document.getElementById('cardVisualizadorConsulta').style.display='none'">
+                <i class="bi bi-x-lg"></i> Fechar
+              </button>
+            </div>
+          </div>
+
+          <div class="frente-sala-bar">
+            <i class="bi bi-easel2-fill me-2"></i>QUADRO BRANCO / MESA DO PROFESSOR (FRENTE DA SALA)
+          </div>
+
+          <div class="sala-scroll-wrapper">
+            <div id="headerFilasConsulta" class="grid-mapeamento mb-2"></div>
+            <div id="gradeCarteirasConsulta" class="grid-mapeamento"></div>
+          </div>
         </div>
       </div>
 
-      <div class="row g-3 align-items-end">
-        <div class="col-12 col-sm-6 col-md-3">
-          <label class="form-label">Série / Turma</label>
-          <select id="selectSerie" class="form-select" onchange="aoSelecionarSerie()">
-            <option value="">Carregando séries...</option>
-          </select>
-        </div>
-
-        <div class="col-12 col-sm-6 col-md-3">
-          <label class="form-label">Professor Diretor de Turma (PDT)</label>
-          <input type="text" id="inputPdtAuto" class="form-control bg-light fw-bold text-success" readonly placeholder="Selecione a Série...">
-        </div>
-
-        <div class="col-6 col-sm-4 col-md-2">
-          <label class="form-label" title="Quantidade de filas lado a lado (Horizontal)">Filas (Colunas)</label>
-          <select id="selectColunas" class="form-select" onchange="gerarGradeMapeamento(true)">
-            <option value="3">3 Filas</option>
-            <option value="4">4 Filas</option>
-            <option value="5" selected>5 Filas (Padrão)</option>
-            <option value="6">6 Filas</option>
-            <option value="7">7 Filas</option>
-            <option value="8">8 Filas</option>
-          </select>
-        </div>
-
-        <div class="col-6 col-sm-4 col-md-2">
-          <label class="form-label" title="Quantidade de carteiras em cada fila (Vertical)">Carteiras por Fila</label>
-          <select id="selectLinhas" class="form-select" onchange="gerarGradeMapeamento(true)">
-            <option value="4">4 Carteiras</option>
-            <option value="5">5 Carteiras</option>
-            <option value="6">6 Carteiras</option>
-            <option value="7" selected>7 Carteiras</option>
-            <option value="8">8 Carteiras</option>
-            <option value="9">9 Carteiras</option>
-            <option value="10">10 Carteiras</option>
-          </select>
-        </div>
-
-        <div class="col-12 col-sm-4 col-md-2 d-grid">
-          <button class="btn btn-tema py-2" onclick="gerarGradeMapeamento(true)">
-            <i class="bi bi-layout-wtf me-1"></i>Montar Sala
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ÁREA DO MAPEAMENTO VISUAL (QUADROS 3X4) -->
-    <div class="card p-4" id="cardSalaAula" style="display: none;">
-      <div class="card-header-custom">
-        <div>
-          <h5 class="fw-bold m-0 text-dark" id="tituloMapaTurma">
-            <i class="bi bi-person-bounding-box text-success me-2"></i>Planta da Sala de Aula
-          </h5>
-          <small class="text-muted" id="subtituloUltimoSave">Clique na lista suspensa abaixo de cada quadro 3x4 para escolher o aluno.</small>
-        </div>
-        <div class="d-flex flex-wrap gap-2">
-          <button class="btn btn-outline-primary btn-sm fw-bold px-3" onclick="preencherOrdemAlfabetica()">
-            <i class="bi bi-sort-alpha-down me-1"></i>Auto-Preencher (A-Z)
-          </button>
-          <button class="btn btn-tema btn-sm fw-bold px-3" onclick="salvarMapeamentoNoBanco()">
-            <i class="bi bi-cloud-arrow-up-fill me-1"></i>Salvar no Banco
-          </button>
-          <button class="btn btn-danger btn-sm fw-bold px-3" onclick="baixarPdfMapeamento()">
-            <i class="bi bi-file-earmark-pdf-fill me-1"></i>Baixar PDF com Fotos 3x4
-          </button>
-        </div>
-      </div>
-
-      <!-- Barra representando a Lousa e Mesa do Professor -->
-      <div class="frente-sala-bar">
-        <i class="bi bi-easel2-fill me-2"></i>QUADRO BRANCO / MESA DO PROFESSOR (FRENTE DA SALA)
-      </div>
-
-      <!-- Grade Dinâmica de Filas x Carteiras -->
-      <div class="sala-scroll-wrapper">
-        <div id="containerCabecalhoFilas" class="grid-mapeamento mb-2"></div>
-        <div id="containerGradeCarteiras" class="grid-mapeamento"></div>
-      </div>
     </div>
 
   </div>
@@ -467,71 +607,277 @@
     const API_URL = "https://script.google.com/macros/s/AKfycbyNedpZQsNt5lzHtrCSRfC4bWFEuCHHkZ4ygbm-DDm0NUBVARwS5GNFMu2zB3WutFE/exec";
     const AVATAR_PADRAO = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
+    let nomeUsuarioLogado = "";
+    let perfilUsuarioLogado = "";
+    let isGestaoEscolar = false;
+    let turmasDoPdtLogado = [];
+
     let todosAlunosEscola = [];
     let alunosDaSerieAtual = [];
     let mapaPdtPorSerie = {};
-
-    // Guarda quem está sentado em cada posição: { "F1-C1": "NOME DO ALUNO", "F2-C1": "..." }
     let posicoesOcupadas = {};
 
+    // Dicionário completo com todos os mapeamentos salvos (Online + Offline): { "1º ANO A": { serie, pdt, colunas, linhas, posicoes, ultimaAtualizacao, atualizadoPor } }
+    let cacheMapeamentosGlobal = {};
+
+    function atualizarStatusRedeUI() {
+      const badge = document.getElementById('statusConexaoBadge');
+      if (!badge) return;
+      if (navigator.onLine) {
+        badge.className = "badge bg-success-subtle text-success border border-success-subtle px-3 py-2";
+        badge.innerHTML = `<i class="bi bi-wifi me-1"></i>Online`;
+      } else {
+        badge.className = "badge bg-warning-subtle text-dark border border-warning px-3 py-2";
+        badge.innerHTML = `<i class="bi bi-wifi-off me-1"></i>Modo Offline Ativo`;
+      }
+    }
+
+    window.addEventListener('online', async () => {
+      atualizarStatusRedeUI();
+      await sincronizarFilaOfflinePendente();
+      await sincronizarTodosMapeamentosDoServidor(false);
+    });
+    window.addEventListener('offline', atualizarStatusRedeUI);
+
+    function compararNomesFlexivel(nomeA, nomeB) {
+      let a = String(nomeA || ""). normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+      let b = String(nomeB || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+      if (!a || !b) return false;
+      return a === b || a.includes(b) || b.includes(a);
+    }
+
     window.onload = async function() {
-      const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
-      if (u) {
-        let nomeProf = (u.nome || u.usuario?.nome || u.col1 || "Usuário").toUpperCase();
+      atualizarStatusRedeUI();
+
+      if (usuarioLogado) {
+        nomeUsuarioLogado = String(usuarioLogado.nome || usuarioLogado.usuario?.nome || usuarioLogado.col1 || "Usuário").trim().toUpperCase();
+        perfilUsuarioLogado = String(usuarioLogado.permissao || usuarioLogado.usuario?.role || "").trim().toUpperCase();
+        isGestaoEscolar = (perfilUsuarioLogado === 'ADMINISTRADOR' || perfilUsuarioLogado === 'DIREÇÃO' || perfilUsuarioLogado === 'DIRECAO');
+
         const elUser = document.getElementById('nomeUsuarioUi');
-        if (elUser) elUser.innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeProf}`;
+        if (elUser) elUser.innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeUsuarioLogado}`;
       }
 
+      // 1. Carrega imediatamente o cache offline salvo no dispositivo para funcionar sem internet
+      carregarCachesLocais();
+
       Swal.fire({
-        title: 'Carregando Turmas, PDTs e Alunos...',
+        title: 'Sincronizando Mapeamentos...',
+        text: 'Preparando turmas, PDTs e mapas para acesso offline...',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
       });
 
-      try {
-        const [resAlunos, resPdt, resSeries] = await Promise.all([
-          fetch(API_URL + "?v=" + new Date().getTime(), { method: 'POST', body: JSON.stringify({ action: 'getFiltrosOcorrencias' }) }).then(r => r.json()),
-          fetch(API_URL + "?v=" + new Date().getTime(), { method: 'POST', body: JSON.stringify({ action: 'listarPDT' }) }).then(r => r.json()).catch(() => ({ lista: [] })),
-          fetch(API_URL + "?v=" + new Date().getTime(), { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'SERIE' }) }).then(r => r.json()).catch(() => ({ lista: [] }))
-        ]);
+      // 2. Se estiver online, sincroniza dados frescos da planilha e guarda tudo no localStorage
+      if (navigator.onLine) {
+        await sincronizarFilaOfflinePendente();
+        try {
+          const [resAlunos, resPdt, resSeries] = await Promise.all([
+            fetch(API_URL + "?v=" + new Date().getTime(), { method: 'POST', body: JSON.stringify({ action: 'getFiltrosOcorrencias' }) }).then(r => r.json()).catch(() => null),
+            fetch(API_URL + "?v=" + new Date().getTime(), { method: 'POST', body: JSON.stringify({ action: 'listarPDT' }) }).then(r => r.json()).catch(() => null),
+            fetch(API_URL + "?v=" + new Date().getTime(), { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'SERIE' }) }).then(r => r.json()).catch(() => null)
+          ]);
 
-        if (resAlunos && Array.isArray(resAlunos.alunos)) {
-          todosAlunosEscola = resAlunos.alunos;
+          if (resAlunos && Array.isArray(resAlunos.alunos)) {
+            todosAlunosEscola = resAlunos.alunos;
+            localStorage.setItem('cache_alunos_mapa_v2', JSON.stringify(todosAlunosEscola));
+          }
+
+          if (resPdt && Array.isArray(resPdt.lista)) {
+            mapaPdtPorSerie = {};
+            resPdt.lista.forEach(item => {
+              if (item.serie) {
+                mapaPdtPorSerie[String(item.serie).trim().toUpperCase()] = String(item.professor || "Não atribuído").trim().toUpperCase();
+              }
+            });
+            localStorage.setItem('cache_pdt_mapa_v2', JSON.stringify(mapaPdtPorSerie));
+          }
+
+          if (resSeries && Array.isArray(resSeries.lista)) {
+            localStorage.setItem('cache_series_mapa_v2', JSON.stringify(resSeries.lista));
+          }
+
+          await sincronizarTodosMapeamentosDoServidor(false);
+        } catch (e) {
+          console.warn("Operando com dados em cache offline:", e);
         }
+      }
 
-        if (resPdt && Array.isArray(resPdt.lista)) {
-          resPdt.lista.forEach(item => {
-            if (item.serie) {
-              mapaPdtPorSerie[String(item.serie).trim().toUpperCase()] = item.professor || "Não atribuído";
+      configurarPermissoesPdtETurmas();
+      renderizarTabelaMapeamentosSalvos();
+      Swal.close();
+    };
+
+    function carregarCachesLocais() {
+      try {
+        const cAlunos = localStorage.getItem('cache_alunos_mapa_v2') || localStorage.getItem('cache_alunos_rac');
+        if (cAlunos) todosAlunosEscola = JSON.parse(cAlunos);
+
+        const cPdt = localStorage.getItem('cache_pdt_mapa_v2');
+        if (cPdt) mapaPdtPorSerie = JSON.parse(cPdt);
+
+        const cMapas = localStorage.getItem('cache_todos_mapeamentos_offline');
+        if (cMapas) cacheMapeamentosGlobal = JSON.parse(cMapas);
+      } catch (e) {}
+    }
+
+    function salvarCacheGlobalMapeamentos() {
+      try {
+        localStorage.setItem('cache_todos_mapeamentos_offline', JSON.stringify(cacheMapeamentosGlobal));
+      } catch (e) {}
+    }
+
+    // Baixa todos os mapeamentos salvos na planilha (ou busca série por série caso a rota listarTodosMapeamentos ainda não tenha sido republicada)
+    async function sincronizarTodosMapeamentosDoServidor(exibirFeedback) {
+      if (!navigator.onLine) {
+        if (exibirFeedback) {
+          Swal.fire('Modo Offline', 'Você está sem internet no momento. Exibindo os mapeamentos salvos no aparelho.', 'info');
+        }
+        renderizarTabelaMapeamentosSalvos();
+        return;
+      }
+
+      if (exibirFeedback) {
+        Swal.fire({ title: 'Atualizando lista...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      }
+
+      try {
+        const resLista = await fetch(API_URL + "?v=" + new Date().getTime(), {
+          method: 'POST',
+          body: JSON.stringify({ action: 'listarTodosMapeamentos' })
+        }).then(r => r.json()).catch(() => null);
+
+        if (resLista && resLista.success && Array.isArray(resLista.lista)) {
+          resLista.lista.forEach(item => {
+            const s = String(item.serie || "").trim().toUpperCase();
+            if (!s) return;
+            cacheMapeamentosGlobal[s] = {
+              serie: s,
+              pdt: item.pdt || mapaPdtPorSerie[s] || "Não atribuído",
+              colunas: Number(item.colunas) || 5,
+              linhas: Number(item.linhas) || 7,
+              posicoes: item.posicoes || {},
+              ultimaAtualizacao: item.ultimaAtualizacao || "-",
+              atualizadoPor: item.atualizadoPor || "-"
+            };
+          });
+        } else {
+          // Fallback automático: caso o usuário ainda não tenha gerado "Nova implantação" com listarTodosMapeamentosDB,
+          // busca individualmente cada série da aba PDT usando buscarMapeamentoSala (que já está publicado!)
+          const todasSeries = Object.keys(mapaPdtPorSerie);
+          const promessas = todasSeries.map(s =>
+            fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'buscarMapeamentoSala', serie: s }) })
+              .then(r => r.json())
+              .then(resp => ({ serie: s, resp: resp }))
+              .catch(() => ({ serie: s, resp: null }))
+          );
+
+          const resultados = await Promise.all(promessas);
+          resultados.forEach(({ serie, resp }) => {
+            if (resp && resp.success && resp.encontrado && resp.dados) {
+              cacheMapeamentosGlobal[serie] = {
+                serie: serie,
+                pdt: resp.dados.pdt || mapaPdtPorSerie[serie] || "Não atribuído",
+                colunas: Number(resp.dados.colunas) || 5,
+                linhas: Number(resp.dados.linhas) || 7,
+                posicoes: resp.dados.posicoes || {},
+                ultimaAtualizacao: formatarDataHoraExibicao(resp.dados.ultimaAtualizacao),
+                atualizadoPor: resp.dados.atualizadoPor || "-"
+              };
+            } else if (!cacheMapeamentosGlobal[serie]) {
+              cacheMapeamentosGlobal[serie] = {
+                serie: serie,
+                pdt: mapaPdtPorSerie[serie] || "Não atribuído",
+                colunas: 5,
+                linhas: 7,
+                posicoes: {},
+                ultimaAtualizacao: "Ainda não salvo",
+                atualizadoPor: "-"
+              };
             }
           });
         }
 
-        let seriesSet = new Set();
-        if (resSeries && Array.isArray(resSeries.lista)) {
-          resSeries.lista.forEach(s => {
-            let nomeS = String(s.col2 || s.col1 || "").trim().toUpperCase();
-            if (nomeS && !nomeS.includes("SÉRIE") && !nomeS.includes("SERIE")) seriesSet.add(nomeS);
-          });
-        }
-        todosAlunosEscola.forEach(a => {
-          let s = String(a.serie || "").trim().toUpperCase();
-          if (s && s !== "TRANSFERIDO") seriesSet.add(s);
-        });
-
-        const selSerie = document.getElementById('selectSerie');
-        let htmlSeries = '<option value="">Selecione a Série / Turma...</option>';
-        Array.from(seriesSet).sort().forEach(s => {
-          htmlSeries += `<option value="${s}">${s}</option>`;
-        });
-        selSerie.innerHTML = htmlSeries;
-
-        Swal.close();
+        salvarCacheGlobalMapeamentos();
       } catch (e) {
         console.error(e);
-        Swal.fire('Erro', 'Não foi possível carregar as turmas e alunos.', 'error');
       }
-    };
+
+      if (exibirFeedback) Swal.close();
+      renderizarTabelaMapeamentosSalvos();
+    }
+
+    function formatarDataHoraExibicao(valor) {
+      if (!valor || valor === "-") return "-";
+      let s = String(valor).trim();
+      if (s.includes("T") && s.includes("Z")) {
+        let d = new Date(s);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR');
+        }
+      }
+      return s;
+    }
+
+    // Configura a Aba 1 para que APENAS quem é PDT (ou Gestão) possa criar/editar, preenchendo Turma e PDT automaticamente
+    function configurarPermissoesPdtETurmas() {
+      let todasSeries = new Set(Object.keys(mapaPdtPorSerie));
+      todosAlunosEscola.forEach(a => {
+        let s = String(a.serie || "").trim().toUpperCase();
+        if (s && s !== "TRANSFERIDO") todasSeries.add(s);
+      });
+
+      const listaSeriesOrdenada = Array.from(todasSeries).sort();
+
+      // Descobre de quais turmas o professor logado é PDT
+      turmasDoPdtLogado = listaSeriesOrdenada.filter(serie => {
+        const pdtDaSerie = mapaPdtPorSerie[serie] || "";
+        return compararNomesFlexivel(pdtDaSerie, nomeUsuarioLogado);
+      });
+
+      const selSerie = document.getElementById('selectSerie');
+
+      if (isGestaoEscolar) {
+        // Gestão / Admin pode escolher qualquer turma
+        let html = '<option value="">Selecione a Série / Turma...</option>';
+        listaSeriesOrdenada.forEach(s => {
+          html += `<option value="${s}">${s}</option>`;
+        });
+        selSerie.innerHTML = html;
+        selSerie.disabled = false;
+        document.getElementById('textoAjudaPdt').innerText = "Perfil Gestão/Admin: você pode selecionar e editar qualquer turma.";
+        if (listaSeriesOrdenada.length > 0) {
+          selSerie.value = listaSeriesOrdenada[0];
+          aoSelecionarSerie();
+        }
+      } else if (turmasDoPdtLogado.length > 0) {
+        // É PDT! Preenche automaticamente apenas a(s) turma(s) dele
+        let html = '';
+        turmasDoPdtLogado.forEach(s => {
+          html += `<option value="${s}">${s}</option>`;
+        });
+        selSerie.innerHTML = html;
+        selSerie.value = turmasDoPdtLogado[0];
+        // Se for PDT de apenas 1 turma, trava o select para ficar 100% automático
+        selSerie.disabled = (turmasDoPdtLogado.length === 1);
+        document.getElementById('textoAjudaPdt').innerText = "Sua turma e seu nome de PDT foram preenchidos automaticamente.";
+        aoSelecionarSerie();
+      } else {
+        // Professor comum que NÃO é PDT: bloqueia a Aba 1 e abre direto a Aba 2 (Mapeamentos Salvos)
+        document.getElementById('areaEdicaoPdt').style.display = 'none';
+        document.getElementById('cardBloqueioNaoPdt').style.display = 'block';
+        document.getElementById('lblNomeProfBloqueio').innerText = nomeUsuarioLogado;
+        irParaAbaSalvos();
+      }
+    }
+
+    function irParaAbaSalvos() {
+      const btnSalvos = document.getElementById('tab-salvos-btn');
+      if (btnSalvos) {
+        bootstrap.Tab.getOrCreateInstance(btnSalvos).show();
+        renderizarTabelaMapeamentosSalvos();
+      }
+    }
 
     async function aoSelecionarSerie() {
       const serie = document.getElementById('selectSerie').value;
@@ -544,72 +890,72 @@
         return;
       }
 
-      // 1. Puxa automaticamente o PDT da Série
       const pdt = mapaPdtPorSerie[serie.toUpperCase()] || "Não atribuído";
       inputPdt.value = pdt;
 
-      // 2. Filtra os alunos pertencentes a esta Série
       alunosDaSerieAtual = todosAlunosEscola
         .filter(a => String(a.serie || "").trim().toUpperCase() === serie.toUpperCase())
         .sort((a, b) => a.nome.localeCompare(b.nome));
 
       posicoesOcupadas = {};
 
-      // 3. Verifica se já existe um mapeamento salvo no banco (ou no cache local) para esta turma
-      Swal.fire({
-        title: 'Buscando Mapeamento da Turma...',
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
-      });
+      let carregouOnline = false;
+      if (navigator.onLine) {
+        try {
+          const resMapa = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'buscarMapeamentoSala', serie: serie })
+          }).then(r => r.json());
 
-      let carregouDoBanco = false;
-      try {
-        const resMapa = await fetch(API_URL, {
-          method: 'POST',
-          body: JSON.stringify({ action: 'buscarMapeamentoSala', serie: serie })
-        }).then(r => r.json());
+          if (resMapa && resMapa.success && resMapa.encontrado && resMapa.dados) {
+            const d = resMapa.dados;
+            document.getElementById('selectColunas').value = d.colunas || 5;
+            document.getElementById('selectLinhas').value = d.linhas || 7;
+            posicoesOcupadas = d.posicoes || {};
+            const dtFormatada = formatarDataHoraExibicao(d.ultimaAtualizacao);
 
-        if (resMapa && resMapa.success && resMapa.encontrado && resMapa.dados) {
-          document.getElementById('selectColunas').value = resMapa.dados.colunas || 5;
-          document.getElementById('selectLinhas').value = resMapa.dados.linhas || 7;
-          posicoesOcupadas = resMapa.dados.posicoes || {};
+            document.getElementById('subtituloUltimoSave').innerText =
+              `Última atualização: ${dtFormatada} por ${d.atualizadoPor || pdt}`;
+
+            cacheMapeamentosGlobal[serie] = {
+              serie: serie,
+              pdt: pdt,
+              colunas: Number(d.colunas) || 5,
+              linhas: Number(d.linhas) || 7,
+              posicoes: posicoesOcupadas,
+              ultimaAtualizacao: dtFormatada,
+              atualizadoPor: d.atualizadoPor || pdt
+            };
+            salvarCacheGlobalMapeamentos();
+            carregouOnline = true;
+          }
+        } catch (e) {}
+      }
+
+      if (!carregouOnline) {
+        const salvoCache = cacheMapeamentosGlobal[serie] || JSON.parse(localStorage.getItem(`mapeamento_sala_${serie}`) || 'null');
+        if (salvoCache && salvoCache.posicoes && Object.keys(salvoCache.posicoes).length > 0) {
+          document.getElementById('selectColunas').value = salvoCache.colunas || 5;
+          document.getElementById('selectLinhas').value = salvoCache.linhas || 7;
+          posicoesOcupadas = salvoCache.posicoes || {};
           document.getElementById('subtituloUltimoSave').innerText =
-            `Última atualização em: ${resMapa.dados.ultimaAtualizacao || '-'} por ${resMapa.dados.atualizadoPor || 'Sistema'}`;
-          carregouDoBanco = true;
-        }
-      } catch (e) {}
-
-      if (!carregouDoBanco) {
-        const cacheLocal = localStorage.getItem(`mapeamento_sala_${serie}`);
-        if (cacheLocal) {
-          try {
-            const obj = JSON.parse(cacheLocal);
-            document.getElementById('selectColunas').value = obj.colunas || 5;
-            document.getElementById('selectLinhas').value = obj.linhas || 7;
-            posicoesOcupadas = obj.posicoes || {};
-            document.getElementById('subtituloUltimoSave').innerText = `Carregado do armazenamento local.`;
-          } catch (e) {}
+            `Última atualização: ${salvoCache.ultimaAtualizacao || 'Salvo no dispositivo'} por ${salvoCache.atualizadoPor || pdt}`;
         } else {
           document.getElementById('subtituloUltimoSave').innerText = `Novo mapeamento — selecione os alunos abaixo de cada quadro 3x4.`;
         }
       }
 
-      Swal.close();
       gerarGradeMapeamento(true);
     }
 
     function gerarGradeMapeamento(manterAlocados) {
       const serie = document.getElementById('selectSerie').value;
-      if (!serie) {
-        return Swal.fire('Atenção', 'Selecione primeiro a Série / Turma.', 'warning');
-      }
+      if (!serie) return;
 
       const numColunas = parseInt(document.getElementById('selectColunas').value, 10) || 5;
       const numLinhas = parseInt(document.getElementById('selectLinhas').value, 10) || 7;
 
-      if (!manterAlocados) {
-        posicoesOcupadas = {};
-      }
+      if (!manterAlocados) posicoesOcupadas = {};
 
       const pdt = document.getElementById('inputPdtAuto').value;
       document.getElementById('tituloMapaTurma').innerHTML =
@@ -621,14 +967,12 @@
       containerHeaders.style.gridTemplateColumns = `repeat(${numColunas}, minmax(155px, 1fr))`;
       containerGrade.style.gridTemplateColumns = `repeat(${numColunas}, minmax(155px, 1fr))`;
 
-      // Cabeçalho das Filas (Fila 1, Fila 2...)
       let htmlHeader = '';
       for (let c = 1; c <= numColunas; c++) {
         htmlHeader += `<div class="header-fila"><i class="bi bi-distribute-vertical me-1"></i>FILA ${c}</div>`;
       }
       containerHeaders.innerHTML = htmlHeader;
 
-      // Gera as carteiras (Linha por Linha, Coluna por Coluna)
       let htmlCarteiras = '';
       for (let l = 1; l <= numLinhas; l++) {
         for (let c = 1; c <= numColunas; c++) {
@@ -640,7 +984,6 @@
                 <i class="bi bi-x-lg"></i>
               </button>
 
-              <!-- Quadro Foto 3x4 -->
               <div class="moldura-3x4" id="moldura_${posKey}">
                 <div class="placeholder-3x4">
                   <i class="bi bi-person-bounding-box"></i>
@@ -648,7 +991,6 @@
                 </div>
               </div>
 
-              <!-- Lista Suspensa com os Alunos da Série -->
               <select class="select-aluno-carteira" id="sel_${posKey}" onchange="aoEscolherAlunoNaCarteira('${posKey}', this)">
                 <option value="">-- Selecionar Aluno --</option>
               </select>
@@ -663,7 +1005,6 @@
       atualizarInterfaceCarteiras();
     }
 
-    // Valida se o aluno já foi escolhido noutra posição e mostra o aviso!
     function aoEscolherAlunoNaCarteira(posKey, selectEl) {
       const alunoEscolhido = selectEl.value;
 
@@ -674,19 +1015,14 @@
         return;
       }
 
-      // Verifica se este aluno já está em QUALQUER outra posição da sala
       for (const [outraPos, nomeOcupante] of Object.entries(posicoesOcupadas)) {
         if (outraPos !== posKey && nomeOcupante === alunoEscolhido) {
           const partes = outraPos.replace('F', '').split('-C');
-          const filaOcupada = partes[0];
-          const carteiraOcupada = partes[1];
-
-          // Reverte imediatamente a seleção duplicada
           selectEl.value = posicoesOcupadas[posKey] || "";
 
           Swal.fire({
             title: 'Aluno já Alocado!',
-            html: `O(a) aluno(a) <b>${alunoEscolhido}</b> já foi selecionado(a) na <b>Fila ${filaOcupada} (${carteiraOcupada}ª Carteira)</b>.<br><br>Por favor, escolha outro aluno ou remova-o da posição anterior primeiro.`,
+            html: `O(a) aluno(a) <b>${alunoEscolhido}</b> já foi selecionado(a) na <b>Fila ${partes[0]} (${partes[1]}ª Carteira)</b>.<br><br>Escolha outro aluno ou remova-o da posição anterior primeiro.`,
             icon: 'warning',
             confirmButtonColor: '#0f766e'
           });
@@ -709,7 +1045,6 @@
       const numColunas = parseInt(document.getElementById('selectColunas').value, 10) || 5;
       const numLinhas = parseInt(document.getElementById('selectLinhas').value, 10) || 7;
 
-      // Descobre todos os alunos já alocados em posições visíveis da grade atual
       const mapaOndeEsta = {};
       for (let l = 1; l <= numLinhas; l++) {
         for (let c = 1; c <= numColunas; c++) {
@@ -720,7 +1055,6 @@
         }
       }
 
-      // Atualiza cada carteira (Foto 3x4 + Select com indicação de quem já está alocado)
       for (let l = 1; l <= numLinhas; l++) {
         for (let c = 1; c <= numColunas; c++) {
           const posKey = `F${c}-C${l}`;
@@ -731,17 +1065,14 @@
 
           const alunoAtual = posicoesOcupadas[posKey] || "";
 
-          // Popula o Select mantendo todos os alunos clicáveis (para disparar o aviso caso tente repetir)
           let htmlOptions = '<option value="">-- Vazio --</option>';
           alunosDaSerieAtual.forEach(al => {
-            const isSelecionadoAqui = (al.nome === alunoAtual);
-            const jaAlocadoEmOutro = (!isSelecionadoAqui && mapaOndeEsta[al.nome]);
-            const sufixoAlocado = jaAlocadoEmOutro ? ` (✓ ${mapaOndeEsta[al.nome]})` : '';
-            htmlOptions += `<option value="${al.nome}" ${isSelecionadoAqui ? 'selected' : ''}>${al.nome}${sufixoAlocado}</option>`;
+            const isSel = (al.nome === alunoAtual);
+            const jaAlocado = (!isSel && mapaOndeEsta[al.nome]);
+            htmlOptions += `<option value="${al.nome}" ${isSel ? 'selected' : ''}>${al.nome}${jaAlocado ? ` (✓ ${mapaOndeEsta[al.nome]})` : ''}</option>`;
           });
           selectEl.innerHTML = htmlOptions;
 
-          // Atualiza a Moldura 3x4
           if (alunoAtual) {
             cardEl.classList.add('ocupada');
             const objAluno = alunosDaSerieAtual.find(a => a.nome === alunoAtual);
@@ -769,7 +1100,6 @@
       posicoesOcupadas = {};
       let idxAluno = 0;
 
-      // Preenche fila por fila
       for (let c = 1; c <= numColunas; c++) {
         for (let l = 1; l <= numLinhas; l++) {
           if (idxAluno < alunosDaSerieAtual.length) {
@@ -805,29 +1135,53 @@
     function salvarCacheLocal() {
       const serie = document.getElementById('selectSerie').value;
       if (!serie) return;
-      const dados = {
+      const agoraStr = new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR');
+      const obj = {
         serie: serie,
         pdt: document.getElementById('inputPdtAuto').value,
-        colunas: parseInt(document.getElementById('selectColunas').value, 10),
-        linhas: parseInt(document.getElementById('selectLinhas').value, 10),
-        posicoes: posicoesOcupadas
+        colunas: parseInt(document.getElementById('selectColunas').value, 10) || 5,
+        linhas: parseInt(document.getElementById('selectLinhas').value, 10) || 7,
+        posicoes: posicoesOcupadas,
+        ultimaAtualizacao: cacheMapeamentosGlobal[serie]?.ultimaAtualizacao || agoraStr,
+        atualizadoPor: cacheMapeamentosGlobal[serie]?.atualizadoPor || nomeUsuarioLogado
       };
-      localStorage.setItem(`mapeamento_sala_${serie}`, JSON.stringify(dados));
+      localStorage.setItem(`mapeamento_sala_${serie}`, JSON.stringify(obj));
     }
 
     async function salvarMapeamentoNoBanco() {
       const serie = document.getElementById('selectSerie').value;
       if (!serie) return;
 
+      const agoraStr = new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR');
       const dadosSalvar = {
         serie: serie,
         pdt: document.getElementById('inputPdtAuto').value,
-        colunas: parseInt(document.getElementById('selectColunas').value, 10),
-        linhas: parseInt(document.getElementById('selectLinhas').value, 10),
-        posicoes: posicoesOcupadas
+        colunas: parseInt(document.getElementById('selectColunas').value, 10) || 5,
+        linhas: parseInt(document.getElementById('selectLinhas').value, 10) || 7,
+        posicoes: posicoesOcupadas,
+        autor: nomeUsuarioLogado
       };
 
+      // Atualiza imediatamente o cache global e a data de última atualização para aparecer na Aba 2
+      cacheMapeamentosGlobal[serie] = {
+        ...dadosSalvar,
+        ultimaAtualizacao: agoraStr,
+        atualizadoPor: nomeUsuarioLogado
+      };
+      salvarCacheGlobalMapeamentos();
       salvarCacheLocal();
+      renderizarTabelaMapeamentosSalvos();
+
+      if (!navigator.onLine) {
+        adicionarNaFilaOffline(dadosSalvar);
+        document.getElementById('subtituloUltimoSave').innerText = `Última atualização (Offline): ${agoraStr} por ${nomeUsuarioLogado}`;
+        return Swal.fire({
+          title: 'Salvo no Modo Offline!',
+          text: 'O mapeamento já está disponível na aba "Mapeamentos Salvos" e será enviado à planilha assim que a internet voltar.',
+          icon: 'info',
+          confirmButtonColor: '#0f766e'
+        });
+      }
 
       Swal.fire({
         title: 'Salvando Mapeamento na Planilha...',
@@ -842,23 +1196,176 @@
         }).then(r => r.json());
 
         if (res && res.success) {
+          const dtOficial = res.ultimaAtualizacao || agoraStr;
+          const autorOficial = res.atualizadoPor || nomeUsuarioLogado;
+
+          cacheMapeamentosGlobal[serie].ultimaAtualizacao = dtOficial;
+          cacheMapeamentosGlobal[serie].atualizadoPor = autorOficial;
+          salvarCacheGlobalMapeamentos();
+          renderizarTabelaMapeamentosSalvos();
+
+          document.getElementById('subtituloUltimoSave').innerText = `Última atualização: ${dtOficial} por ${autorOficial}`;
+
           Swal.fire({
             title: 'Salvo com Sucesso!',
-            text: res.msg || 'O mapeamento da sala foi salvo no banco de dados!',
+            text: `Mapeamento gravado! Última atualização: ${dtOficial}`,
             icon: 'success',
             confirmButtonColor: '#0f766e'
           });
         } else {
-          Swal.fire({
-            title: 'Salvo no Dispositivo!',
-            text: 'O mapeamento ficou guardado localmente (verifique se a função salvarMapeamentoSala já foi adicionada no codigo.gs).',
-            icon: 'info',
-            confirmButtonColor: '#0f766e'
-          });
+          adicionarNaFilaOffline(dadosSalvar);
+          Swal.fire('Salvo Localmente', 'O mapa foi guardado no aparelho e atualizado na lista.', 'info');
         }
       } catch (e) {
-        Swal.fire('Salvo Localmente', 'Sem conexão com o servidor; o mapa foi guardado neste navegador.', 'info');
+        adicionarNaFilaOffline(dadosSalvar);
+        Swal.fire('Salvo no Modo Offline', 'Sem conexão com o servidor; o mapa foi salvo neste aparelho e sincronizará quando a rede voltar.', 'info');
       }
+    }
+
+    function adicionarNaFilaOffline(dadosSalvar) {
+      try {
+        let fila = JSON.parse(localStorage.getItem('fila_offline_mapeamento') || '[]');
+        fila = fila.filter(item => item.serie !== dadosSalvar.serie);
+        fila.push(dadosSalvar);
+        localStorage.setItem('fila_offline_mapeamento', JSON.stringify(fila));
+      } catch (e) {}
+    }
+
+    async function sincronizarFilaOfflinePendente() {
+      if (!navigator.onLine) return;
+      try {
+        let fila = JSON.parse(localStorage.getItem('fila_offline_mapeamento') || '[]');
+        if (fila.length === 0) return;
+
+        for (let item of fila) {
+          await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'salvarMapeamentoSala', dados: item, usuarioLogado: item.autor })
+          });
+        }
+        localStorage.removeItem('fila_offline_mapeamento');
+      } catch (e) {}
+    }
+
+    // =========================================================
+    // ABA 2: TABELA DE MAPEAMENTOS SALVOS E VISUALIZADOR OFFLINE
+    // =========================================================
+    function renderizarTabelaMapeamentosSalvos() {
+      const tbody = document.getElementById('tbodyMapeamentosSalvos');
+      if (!tbody) return;
+
+      // Garante que todas as séries cadastradas no PDT apareçam na lista
+      Object.keys(mapaPdtPorSerie).forEach(s => {
+        if (!cacheMapeamentosGlobal[s]) {
+          cacheMapeamentosGlobal[s] = {
+            serie: s,
+            pdt: mapaPdtPorSerie[s] || "Não atribuído",
+            colunas: 5,
+            linhas: 7,
+            posicoes: {},
+            ultimaAtualizacao: "Ainda não salvo",
+            atualizadoPor: "-"
+          };
+        }
+      });
+
+      const listaSeries = Object.keys(cacheMapeamentosGlobal).sort();
+
+      if (listaSeries.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Nenhum mapeamento encontrado.</td></tr>';
+        return;
+      }
+
+      let html = '';
+      listaSeries.forEach(serie => {
+        const item = cacheMapeamentosGlobal[serie];
+        const qtdAlocados = Object.keys(item.posicoes || {}).length;
+        const dtExibicao = formatarDataHoraExibicao(item.ultimaAtualizacao);
+        const temMapa = qtdAlocados > 0 || (dtExibicao !== "-" && dtExibicao !== "Ainda não salvo");
+
+        const badgeData = temMapa
+          ? `<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-clock-history me-1"></i>${dtExibicao}</span>`
+          : `<span class="badge bg-light text-muted border">Ainda não salvo</span>`;
+
+        const serieEscapada = serie.replace(/'/g, "\\'");
+
+        html += `
+          <tr>
+            <td class="fw-bold text-dark"><i class="bi bi-mortarboard-fill text-primary me-2"></i>${serie}</td>
+            <td class="fw-semibold text-secondary">${item.pdt || mapaPdtPorSerie[serie] || '-'}</td>
+            <td class="text-center"><span class="badge ${qtdAlocados > 0 ? 'bg-teal' : 'bg-secondary'}" style="${qtdAlocados > 0 ? 'background-color:#0f766e;' : ''}">${qtdAlocados} aluno(s)</span></td>
+            <td>${badgeData}</td>
+            <td class="small fw-semibold text-dark">${item.atualizadoPor || '-'}</td>
+            <td class="text-end">
+              <button class="btn btn-sm btn-outline-success fw-bold me-1" onclick="visualizarMapaNaAbaSalvos('${serieEscapada}')" title="Ver planta da sala com fotos 3x4">
+                <i class="bi bi-eye-fill me-1"></i>Ver Sala
+              </button>
+              <button class="btn btn-sm btn-danger fw-bold" onclick="baixarPdfDaSerieSalva('${serieEscapada}')" title="Baixar PDF 3x4 desta turma">
+                <i class="bi bi-file-earmark-pdf-fill me-1"></i>PDF
+              </button>
+            </td>
+          </tr>`;
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    function visualizarMapaNaAbaSalvos(serie) {
+      const item = cacheMapeamentosGlobal[serie];
+      if (!item) return;
+
+      const numColunas = parseInt(item.colunas, 10) || 5;
+      const numLinhas = parseInt(item.linhas, 10) || 7;
+      const posicoes = item.posicoes || {};
+      const pdt = item.pdt || mapaPdtPorSerie[serie] || "Não atribuído";
+      const dtExibicao = formatarDataHoraExibicao(item.ultimaAtualizacao);
+
+      document.getElementById('tituloVisualizadorConsulta').innerHTML =
+        `<i class="bi bi-eye-fill text-success me-2"></i>Mapa da Sala: ${serie} <span class="badge ms-2" style="background-color:#0f766e;">PDT: ${pdt}</span>`;
+      document.getElementById('subtituloVisualizadorConsulta').innerText =
+        `Última atualização: ${dtExibicao} por ${item.atualizadoPor || '-'}`;
+
+      const btnPdf = document.getElementById('btnPdfVisualizador');
+      btnPdf.onclick = () => baixarPdfDaSerieSalva(serie);
+
+      const headerEl = document.getElementById('headerFilasConsulta');
+      const gradeEl = document.getElementById('gradeCarteirasConsulta');
+
+      headerEl.style.gridTemplateColumns = `repeat(${numColunas}, minmax(155px, 1fr))`;
+      gradeEl.style.gridTemplateColumns = `repeat(${numColunas}, minmax(155px, 1fr))`;
+
+      let htmlH = '';
+      for (let c = 1; c <= numColunas; c++) {
+        htmlH += `<div class="header-fila"><i class="bi bi-distribute-vertical me-1"></i>FILA ${c}</div>`;
+      }
+      headerEl.innerHTML = htmlH;
+
+      let htmlC = '';
+      for (let l = 1; l <= numLinhas; l++) {
+        for (let c = 1; c <= numColunas; c++) {
+          const posKey = `F${c}-C${l}`;
+          const nomeAluno = posicoes[posKey] || "";
+          const objAluno = todosAlunosEscola.find(a => a.nome === nomeAluno);
+          const urlFoto = (objAluno && objAluno.foto && objAluno.foto.includes('http')) ? objAluno.foto : AVATAR_PADRAO;
+
+          htmlC += `
+            <div class="carteira-card ${nomeAluno ? 'ocupada' : ''}">
+              <span class="carteira-badge-pos">Fila ${c} • ${l}ª Cart.</span>
+              <div class="moldura-3x4">
+                ${nomeAluno
+                  ? `<img src="${urlFoto}" alt="${nomeAluno}" onerror="this.src='${AVATAR_PADRAO}'">`
+                  : `<div class="placeholder-3x4"><i class="bi bi-person-bounding-box"></i>Livre</div>`
+                }
+              </div>
+              <div class="nome-aluno-leitura">${nomeAluno || '<span class="text-muted fw-normal">Vazio</span>'}</div>
+            </div>`;
+        }
+      }
+      gradeEl.innerHTML = htmlC;
+
+      const cardVis = document.getElementById('cardVisualizadorConsulta');
+      cardVis.style.display = 'block';
+      cardVis.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function carregarImagemBase64(url) {
@@ -878,13 +1385,30 @@
       });
     }
 
-    // GERA O PDF DO MAPEAMENTO EM MODO PAISAGEM COM OS QUADROS 3X4 E FOTOS
-    async function baixarPdfMapeamento() {
+    async function baixarPdfMapeamentoAtual() {
       const serie = document.getElementById('selectSerie').value;
       const pdt = document.getElementById('inputPdtAuto').value;
       const numColunas = parseInt(document.getElementById('selectColunas').value, 10) || 5;
       const numLinhas = parseInt(document.getElementById('selectLinhas').value, 10) || 7;
+      const dtAtual = cacheMapeamentosGlobal[serie]?.ultimaAtualizacao || new Date().toLocaleDateString('pt-BR');
 
+      await gerarDocumentoPdfMapeamento(serie, pdt, numColunas, numLinhas, posicoesOcupadas, dtAtual);
+    }
+
+    async function baixarPdfDaSerieSalva(serie) {
+      const item = cacheMapeamentosGlobal[serie];
+      if (!item) return;
+      await gerarDocumentoPdfMapeamento(
+        serie,
+        item.pdt || mapaPdtPorSerie[serie] || "Não atribuído",
+        parseInt(item.colunas, 10) || 5,
+        parseInt(item.linhas, 10) || 7,
+        item.posicoes || {},
+        formatarDataHoraExibicao(item.ultimaAtualizacao)
+      );
+    }
+
+    async function gerarDocumentoPdfMapeamento(serie, pdt, numColunas, numLinhas, mapaPosicoes, ultimaAtualizacaoStr) {
       Swal.fire({
         title: 'Gerando Mapa de Sala em PDF...',
         text: 'Processando fotos 3x4 e posicionamento das carteiras...',
@@ -894,9 +1418,8 @@
 
       try {
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF('landscape', 'mm', 'a4'); // 297 x 210 mm
+        const doc = new jsPDF('landscape', 'mm', 'a4');
 
-        // Cabeçalho Institucional
         const logoBase64 = await carregarImagemBase64('LOGO-removebg-preview.png');
         if (logoBase64) {
           try { doc.addImage(logoBase64, 'PNG', 12, 7, 18, 18); } catch (e) {}
@@ -909,14 +1432,13 @@
 
         doc.setFontSize(9.5);
         doc.setTextColor(30, 41, 59);
-        doc.text(`Série / Turma: ${serie}   |   Professor Diretor de Turma (PDT): ${pdt}   |   Layout: ${numColunas} Filas x ${numLinhas} Carteiras`, 33, 19);
+        doc.text(`Série / Turma: ${serie}   |   PDT: ${pdt}   |   Layout: ${numColunas} Filas x ${numLinhas} Carteiras`, 33, 19);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(8);
         doc.setTextColor(100, 116, 139);
-        doc.text(`Emitido em: ${new Date().toLocaleDateString('pt-BR')}`, 285, 13, { align: 'right' });
+        doc.text(`Última atualização: ${ultimaAtualizacaoStr || '-'}`, 285, 13, { align: 'right' });
 
-        // Faixa indicando o Quadro / Frente da Sala
         doc.setFillColor(30, 41, 59);
         doc.roundedRect(65, 22, 167, 6, 1.5, 1.5, 'F');
         doc.setFont("helvetica", "bold");
@@ -924,18 +1446,16 @@
         doc.setTextColor(255, 255, 255);
         doc.text("QUADRO BRANCO / MESA DO PROFESSOR (FRENTE DA SALA)", 148.5, 26, { align: 'center' });
 
-        // Cálculo dinâmico das medidas para caber todas as filas e carteiras perfeitamente na folha A4 Paisagem
         const margemEsq = 12;
-        const larguraUtil = 273; // 297 - 24
+        const larguraUtil = 273;
         const topoGrade = 31;
-        const alturaUtil = 168;  // 210 - 42
+        const alturaUtil = 168;
 
         const espacoX = 3;
         const espacoY = 2.5;
         const larguraCard = (larguraUtil - (espacoX * (numColunas - 1))) / numColunas;
         const alturaCard = (alturaUtil - 7 - (espacoY * (numLinhas - 1))) / numLinhas;
 
-        // Desenha os Títulos das Filas
         for (let c = 1; c <= numColunas; c++) {
           let xFila = margemEsq + (c - 1) * (larguraCard + espacoX);
           doc.setFillColor(15, 118, 110);
@@ -946,29 +1466,27 @@
           doc.text(`FILA ${c}`, xFila + larguraCard / 2, topoGrade + 3.8, { align: 'center' });
         }
 
-        // Pré-carrega fotos dos alunos alocados
         const cacheFotos = {};
-        for (const nomeAl of Object.values(posicoesOcupadas)) {
-          if (nomeAl && !cacheFotos[nomeAl]) {
-            const objAl = alunosDaSerieAtual.find(a => a.nome === nomeAl);
-            if (objAl && objAl.foto && objAl.foto.includes('http')) {
-              cacheFotos[nomeAl] = await carregarImagemBase64(objAl.foto);
+        if (navigator.onLine) {
+          for (const nomeAl of Object.values(mapaPosicoes)) {
+            if (nomeAl && !cacheFotos[nomeAl]) {
+              const objAl = todosAlunosEscola.find(a => a.nome === nomeAl);
+              if (objAl && objAl.foto && objAl.foto.includes('http')) {
+                cacheFotos[nomeAl] = await carregarImagemBase64(objAl.foto);
+              }
             }
           }
         }
 
-        // Desenha cada Carteira com a Foto 3x4 e o Nome abaixo
         const inicioYCarteiras = topoGrade + 7;
-
         for (let l = 1; l <= numLinhas; l++) {
           for (let c = 1; c <= numColunas; c++) {
             const posKey = `F${c}-C${l}`;
-            const nomeOcupante = posicoesOcupadas[posKey] || "";
+            const nomeOcupante = mapaPosicoes[posKey] || "";
 
             const x = margemEsq + (c - 1) * (larguraCard + espacoX);
             const y = inicioYCarteiras + (l - 1) * (alturaCard + espacoY);
 
-            // Caixa da Carteira
             if (nomeOcupante) {
               doc.setDrawColor(15, 118, 110);
               doc.setFillColor(240, 253, 244);
@@ -979,15 +1497,13 @@
             doc.setLineWidth(0.35);
             doc.roundedRect(x, y, larguraCard, alturaCard, 1.5, 1.5, 'FD');
 
-            // Número da carteira no canto superior esquerdo
             doc.setFontSize(5.5);
             doc.setFont("helvetica", "bold");
             doc.setTextColor(100, 116, 139);
             doc.text(`${l}ª Cart.`, x + 1.5, y + 3);
 
-            // Moldura 3x4 centralizada dentro da carteira
             const altFoto = Math.min(alturaCard - 7.5, 15);
-            const largFoto = altFoto * 0.75; // Proporção 3x4
+            const largFoto = altFoto * 0.75;
             const xFoto = x + (larguraCard - largFoto) / 2;
             const yFoto = y + 1.2;
 
@@ -1005,7 +1521,6 @@
               doc.text("3x4", xFoto + largFoto / 2, yFoto + altFoto / 2 + 1, { align: 'center' });
             }
 
-            // Nome do Aluno abaixo da foto 3x4
             doc.setFontSize(5.8);
             doc.setFont("helvetica", nomeOcupante ? "bold" : "normal");
             doc.setTextColor(nomeOcupante ? 15 : 160, nomeOcupante ? 23 : 174, nomeOcupante ? 42 : 192);
