@@ -243,7 +243,6 @@
       }
     }
 
-    // 2. RENDERIZAR TABELA COM ÍNDICE SEGURO PARA EDIÇÃO
     function renderizarTabela(lista) {
       const tbody = document.getElementById('listaBody');
       tbody.innerHTML = '';
@@ -253,14 +252,31 @@
         return;
       }
 
+      // Verifica se o usuário atual é puramente Direção (sem ser Admin)
+      const pUser = ((usuarioLogado && (usuarioLogado.permissao || usuarioLogado.usuario?.role || usuarioLogado.role)) || '').toUpperCase();
+      const apenasDirecao = pUser.includes('DIREÇ') || pUser.includes('DIREC');
+
       lista.forEach((f) => {
-        // Encontra a posição original no array principal para edição 100% segura
         const indexReal = funcionariosAtuais.findIndex(orig => orig.id === f.id && orig.email === f.email);
         let permNorm = String(f.permissao || '').toLowerCase();
         let corBadge = permNorm.includes('admin') ? 'bg-danger' :
                        (permNorm.includes('direç') || permNorm.includes('direc') ? 'bg-primary' : 'bg-success');
 
         const idOuLinhaExclusao = String(f.id || f.linha || '').replace(/'/g, "\\'");
+
+        // Se for Direção, esconde os botões de ação na tabela (somente leitura para registos antigos)
+        let botoesAcao = '';
+        if (!apenasDirecao) {
+          botoesAcao = `
+            <button type="button" class="btn btn-warning btn-sm me-1 shadow-sm" onclick="prepararEdicaoPorIndice(${indexReal})" title="Editar Funcionário">
+              <i class="bi bi-pencil-fill"></i>
+            </button>
+            <button type="button" class="btn btn-danger btn-sm shadow-sm" onclick="excluirFuncionario('${idOuLinhaExclusao}')" title="Excluir Funcionário">
+              <i class="bi bi-trash-fill"></i>
+            </button>`;
+        } else {
+          botoesAcao = `<span class="badge bg-light text-secondary border">Apenas Cadastro</span>`;
+        }
 
         tbody.innerHTML += `
           <tr>
@@ -269,12 +285,7 @@
             <td>${f.email || '-'}</td>
             <td><span class="badge ${corBadge}">${f.permissao || 'Professor'}</span></td>
             <td class="text-center">
-              <button type="button" class="btn btn-warning btn-sm me-1 shadow-sm" onclick="prepararEdicaoPorIndice(${indexReal})" title="Editar Funcionário">
-                <i class="bi bi-pencil-fill"></i>
-              </button>
-              <button type="button" class="btn btn-danger btn-sm shadow-sm" onclick="excluirFuncionario('${idOuLinhaExclusao}')" title="Excluir Funcionário">
-                <i class="bi bi-trash-fill"></i>
-              </button>
+              ${botoesAcao}
             </td>
           </tr>
         `;
