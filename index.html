@@ -384,20 +384,33 @@ function alternarMenuMobile(cardElemento) {
   cardElemento.classList.toggle('aberto');
 }
 
-// Personalização do nome e controlo de acessos baseado no perfil
 document.addEventListener("DOMContentLoaded", () => {
   if (usuarioLogado) {
     const nomeUser = usuarioLogado.nome || usuarioLogado.usuario?.nome || "Utilizador";
     const perfil = (usuarioLogado.permissao || usuarioLogado.usuario?.role || "").toUpperCase();
 
     document.getElementById('saudacaoTitulo').innerText = `Olá, ${nomeUser.toUpperCase()}! Seja bem-vindo(a)`;
-if (perfil !== 'ADMINISTRADOR' && perfil !== 'DIREÇÃO') {
-   
+
+    // 1. Regras para Professores Comuns (Ocultam Alunos, Cadastro de Eletivas e Gestão)
+    if (perfil !== 'ADMINISTRADOR' && perfil !== 'DIREÇÃO') {
+      
+
       const linkCadastro = document.getElementById('linkCadastroEletiva');
       if (linkCadastro) linkCadastro.style.display = 'none';
 
       const blocoGestao = document.getElementById('blocoGestao');
       if (blocoGestao) blocoGestao.style.display = 'none';
+    }
+
+    // 2. Regra específica para o perfil "DIREÇÃO": Oculta Acompanhamento Pedagógico e Auditoria do Sistema
+    if (perfil === 'DIREÇÃO') {
+      const linksGestao = document.querySelectorAll('#blocoGestao a');
+      linksGestao.forEach(link => {
+        const href = link.getAttribute('href');
+        if (href === 'acompanhamento.html' || href === 'auditoria.html') {
+          link.style.display = 'none';
+        }
+      });
     }
   }
 });
