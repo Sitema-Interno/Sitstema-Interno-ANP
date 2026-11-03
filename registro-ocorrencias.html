@@ -35,7 +35,7 @@
     if (!usuarioLogado) window.location.href = 'login.html';
     const nomeUser = usuarioLogado.nome || usuarioLogado.usuario?.nome || "";
     const perfilUser = (usuarioLogado.permissao || usuarioLogado.usuario?.role || "").toUpperCase();
-    const isGestor = (perfilUser === 'ADMINISTRADOR' || perfilUser === 'DIREÇÃO');
+    const isGestor = (perfilUser === 'ADMINISTRADOR' || perfilUser === 'DIREÇÃO' || perfilUser === 'DIRECAO');
   </script>
 </head>
 <body>
@@ -160,19 +160,20 @@
 
   <script>
     // INTERCEPTADOR AUTOMÁTICO DE AUDITORIA: Injeta o nome do usuário logado em todas as ações
-const _fetchOriginal = window.fetch;
-window.fetch = function(url, options) {
-  if (options && options.method === 'POST' && typeof options.body === 'string') {
-    try {
-      const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
-      const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
-      let bodyObj = JSON.parse(options.body);
-      if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
-      options.body = JSON.stringify(bodyObj);
-    } catch (e) {}
-  }
-  return _fetchOriginal(url, options);
-};
+    const _fetchOriginal = window.fetch;
+    window.fetch = function(url, options) {
+      if (options && options.method === 'POST' && typeof options.body === 'string') {
+        try {
+          const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+          const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
+          let bodyObj = JSON.parse(options.body);
+          if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
+          options.body = JSON.stringify(bodyObj);
+        } catch (e) {}
+      }
+      return _fetchOriginal(url, options);
+    };
+
     const API_URL = "https://script.google.com/macros/s/AKfycbyNedpZQsNt5lzHtrCSRfC4bWFEuCHHkZ4ygbm-DDm0NUBVARwS5GNFMu2zB3WutFE/exec";
     let dbAlunos = [];
     let dbOcorrencias = [];
@@ -180,6 +181,41 @@ window.fetch = function(url, options) {
 
     document.getElementById('racData').valueAsDate = new Date();
     document.getElementById('racProfessor').value = nomeUser.toUpperCase();
+
+    // Verifica se a string da foto é válida (aceita tanto Base64 data:image quanto links http/https)
+    function temFotoValida(fotoStr) {
+      if (!fotoStr) return false;
+      const f = String(fotoStr).trim();
+      return f.startsWith('data:image') || f.includes('http');
+    }
+
+    // Busca o aluno priorizando a série selecionada e registros que tenham foto
+    function encontrarAlunoComFoto(nomeBusca, serieBusca) {
+      const nB = String(nomeBusca || "").trim().toUpperCase();
+      const sB = String(serieBusca || "").trim().toUpperCase();
+      if (!nB) return null;
+
+      // 1. Procura na série exata com foto
+      let candidato = dbAlunos.find(a =>
+        String(a.nome || "").trim().toUpperCase() === nB &&
+        (!sB || String(a.serie || "").trim().toUpperCase() === sB) &&
+        temFotoValida(a.foto)
+      );
+      if (candidato) return candidato;
+
+      // 2. Procura em qualquer série caso tenha foto
+      candidato = dbAlunos.find(a =>
+        String(a.nome || "").trim().toUpperCase() === nB &&
+        temFotoValida(a.foto)
+      );
+      if (candidato) return candidato;
+
+      // 3. Fallback: retorna o aluno mesmo sem foto
+      return dbAlunos.find(a =>
+        String(a.nome || "").trim().toUpperCase() === nB &&
+        (!sB || String(a.serie || "").trim().toUpperCase() === sB)
+      ) || dbAlunos.find(a => String(a.nome || "").trim().toUpperCase() === nB);
+    }
 
     function atualizarBadgeOffline() {
       const fila = JSON.parse(localStorage.getItem('filaOffline_RAC') || '[]');
@@ -193,7 +229,6 @@ window.fetch = function(url, options) {
       }
     }
 
-    // MOTOR DE SINCRONIZAÇÃO OFFLINE (Idêntico ao de Frequência-Eletivas)
     async function sincronizarOfflineRAC() {
       if (sincronizandoAgora) return;
       let fila = JSON.parse(localStorage.getItem('filaOffline_RAC') || '[]');
@@ -257,7 +292,6 @@ window.fetch = function(url, options) {
       }
     }
 
-    // Escuta o retorno da internet automaticamente
     window.addEventListener('online', sincronizarOfflineRAC);
 
     window.onload = async function() {
@@ -271,7 +305,6 @@ window.fetch = function(url, options) {
       }
 
       atualizarBadgeOffline();
-      // Dispara a sincronização ao abrir a página caso já tenha internet e existam itens pendentes
       await sincronizarOfflineRAC();
 
       let dados = null;
@@ -305,7 +338,7 @@ window.fetch = function(url, options) {
         dbOcorrencias = dados.ocorrencias || [];
 
         let seriesSet = new Set();
-        dbAlunos.forEach(a => { if (a.serie) seriesSet.add(a.serie); });
+        dbAlunos.forEach(a => { if (a.serie) seriesSet.add(String(a.serie).trim()); });
 
         let htmlSeries = '<option value="">Selecione a série/turma...</option>';
         Array.from(seriesSet).sort().forEach(s => htmlSeries += `<option value="${s}">${s}</option>`);
@@ -335,22 +368,38 @@ window.fetch = function(url, options) {
       }
 
       badgeSerie.innerText = serieSelecionada;
-      const alunosFiltrados = dbAlunos.filter(a => a.serie === serieSelecionada);
-      let html = '<option value="">Selecione o aluno...</option>';
-      alunosFiltrados.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(a => {
-        html += `<option value="${a.nome}">${a.nome}</option>`;
+      const serieUpper = serieSelecionada.trim().toUpperCase();
+      const alunosFiltrados = dbAlunos.filter(a => String(a.serie || "").trim().toUpperCase() === serieUpper);
+
+      // Remove nomes duplicados na mesma série mantendo quem tem foto
+      const nomesUnicos = new Map();
+      alunosFiltrados.forEach(a => {
+        const chaveNome = String(a.nome || "").trim().toUpperCase();
+        if (!nomesUnicos.has(chaveNome) || temFotoValida(a.foto)) {
+          nomesUnicos.set(chaveNome, a);
+        }
       });
+
+      let html = '<option value="">Selecione o aluno...</option>';
+      Array.from(nomesUnicos.values())
+        .sort((a, b) => a.nome.localeCompare(b.nome))
+        .forEach(a => {
+          html += `<option value="${a.nome}">${a.nome}</option>`;
+        });
+
       selAluno.innerHTML = html;
       selAluno.disabled = false;
     }
 
+    // CORREÇÃO PRINCIPAL: Reconhece foto tanto em Base64 (data:image/jpeg;base64,...) quanto em link (http...)
     function aoSelecionarAluno() {
       const nomeAluno = document.getElementById('racAluno').value;
-      const aluno = dbAlunos.find(a => a.nome === nomeAluno);
+      const serieAtual = document.getElementById('racFiltroSerie').value;
+      const aluno = encontrarAlunoComFoto(nomeAluno, serieAtual);
       const boxFoto = document.getElementById('boxFoto');
 
-      if (aluno && aluno.foto && aluno.foto.includes('http')) {
-        boxFoto.innerHTML = `<img src="${aluno.foto}" style="width:100%; height:100%; object-fit: cover;">`;
+      if (aluno && temFotoValida(aluno.foto)) {
+        boxFoto.innerHTML = `<img src="${aluno.foto}" alt="${nomeAluno}" style="width:100%; height:100%; object-fit: cover;" onerror="this.parentElement.innerHTML='<i class=\\'bi bi-person-fill\\' style=\\'font-size: 4rem; color: #94a3b8;\\'></i>'">`;
       } else {
         boxFoto.innerHTML = `<i class="bi bi-person-fill" style="font-size: 4rem; color: #94a3b8;"></i>`;
       }
@@ -413,7 +462,6 @@ window.fetch = function(url, options) {
         }
       };
 
-      // 1. SE ESTIVER OFFLINE, GUARDA IMEDIATAMENTE NO DISPOSITIVO
       if (!navigator.onLine) {
         guardarNaFilaOffline(
           payload,
@@ -424,7 +472,6 @@ window.fetch = function(url, options) {
         return;
       }
 
-      // 2. SE ESTIVER ONLINE, ENVIA PARA A PLANILHA
       btn.innerHTML = 'Salvando...';
       btn.disabled = true;
 
@@ -446,7 +493,6 @@ window.fetch = function(url, options) {
           Swal.fire('Erro', res.error || 'Ocorreu um erro ao guardar.', 'error');
         }
       } catch (e) {
-        // Caso a internet caia exatamente no momento do clique
         guardarNaFilaOffline(
           payload,
           'Salvo Offline',
@@ -542,8 +588,26 @@ window.fetch = function(url, options) {
       }
     }
 
+    function obterImagemParaPDF(url) {
+      return new Promise((resolve) => {
+        if (!url) return resolve(null);
+        let s = String(url).trim();
+        if (s.startsWith('data:image')) return resolve(s);
+        let xhr = new XMLHttpRequest();
+        xhr.onload = function() {
+          let reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(xhr.response);
+        };
+        xhr.onerror = () => resolve(null);
+        xhr.open('GET', s);
+        xhr.responseType = 'blob';
+        xhr.send();
+      });
+    }
+
     async function gerarRelatorioPDF() {
-      const buscaAluno = document.getElementById('buscaAluno').value;
+      const buscaAluno = document.getElementById('buscaAluno').value.trim();
       if (!buscaAluno) return Swal.fire('Atenção', 'Pesquise por um aluno específico antes de gerar o relatório.', 'warning');
 
       const { jsPDF } = window.jspdf;
@@ -566,10 +630,30 @@ window.fetch = function(url, options) {
       doc.setLineWidth(0.5); doc.line(14, 37, 196, 37);
 
       doc.setFontSize(12); doc.setFont("helvetica", "bold");
-      doc.text("EXTRATO DISCIPLINAR DO ALUNO (RAC)", 105, 45, { align: 'center' });
+      doc.text("EXTRATO DISCIPLINAR DO ALUNO (RAC)", 100, 45, { align: 'center' });
+
+      // Moldura e Foto 3x4 do Aluno no PDF
+      doc.setLineWidth(0.3);
+      doc.setFillColor(248, 250, 252);
+      doc.rect(168, 40, 22, 28, 'FD');
+
+      const objAluno = encontrarAlunoComFoto(buscaAluno, "");
+      if (objAluno && temFotoValida(objAluno.foto)) {
+        try {
+          const fotoB64 = await obterImagemParaPDF(objAluno.foto);
+          if (fotoB64) {
+            const fmt = fotoB64.includes('image/png') ? 'PNG' : 'JPEG';
+            doc.addImage(fotoB64, fmt, 168.5, 40.5, 21, 27);
+          }
+        } catch (e) {}
+      }
+
       doc.setFontSize(10); doc.setFont("helvetica", "normal");
       doc.text(`Aluno(a): ${buscaAluno}`, 14, 53);
-      doc.text(`Emitido em: ${new Date().toLocaleString('pt-BR')}`, 196, 53, { align: 'right' });
+      if (objAluno && objAluno.serie) {
+        doc.text(`Série / Turma: ${objAluno.serie}`, 14, 59);
+      }
+      doc.text(`Emitido em: ${new Date().toLocaleString('pt-BR')}`, 14, 65);
 
       let linhas = [];
       document.querySelectorAll('#tabelaGerenciar tr').forEach(tr => {
@@ -580,10 +664,10 @@ window.fetch = function(url, options) {
       });
 
       if (linhas.length === 0) {
-        doc.text("Nenhum registro encontrado para este aluno.", 14, 65);
+        doc.text("Nenhum registro encontrado para este aluno.", 14, 75);
       } else {
         doc.autoTable({
-          startY: 60,
+          startY: 72,
           head: [['Data', 'Ocorrência / Motivo', 'Gravidade', 'Registrado por']],
           body: linhas,
           headStyles: { fillColor: [15, 118, 110] },
