@@ -10,11 +10,8 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  
-  <!-- Bibliotecas para gerar o PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
@@ -28,9 +25,7 @@
     .card-header-custom { border-bottom: 1px solid #eaeaea; padding-bottom: 15px; margin-bottom: 20px; }
     .btn-primary { background-color: #0f766e; border: none; }
     .btn-primary:hover { background-color: #0d645e; }
-    .foto-perfil { width: 110px; height: 135px; object-fit: cover; border-radius: 8px; border: 2px solid #cbd5e1; background: #f8fafc; }
-    
-    /* Estilo das Caixas de Nota Fixa do Bimestre */
+    .foto-perfil { width: 110px; height: 140px; object-fit: cover; border-radius: 8px; border: 2px solid #0f766e; background: #f8fafc; }
     .nota-card { background-color: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 15px; text-align: center; min-width: 115px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
     .nota-title { font-size: 0.7rem; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 3px; }
     .nota-value { font-size: 1.3rem; font-weight: 700; color: #0f766e; }
@@ -42,7 +37,6 @@
   </script>
 </head>
 <body>
-
   <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="">
   <nav class="navbar navbar-custom">
     <div class="container-fluid">
@@ -61,7 +55,7 @@
     <div class="card p-4">
       <div class="card-header-custom d-flex justify-content-between align-items-center">
         <h4 class="m-0"><i class="bi bi-clock-history text-primary me-2"></i>Filtros do Histórico</h4>
-        <button class="btn btn-danger btn-sm" id="btnPdf" onclick="gerarPdfHistorico()" style="display:none;"><i class="bi bi-file-pdf-fill me-2"></i> Baixar PDF do Aluno</button>
+        <button class="btn btn-danger btn-sm" id="btnPdf" onclick="gerarPdfHistorico()" style="display:none;"><i class="bi bi-file-pdf-fill me-2"></i> Baixar PDF do Aluno (Com Foto 3x4)</button>
       </div>
       <div class="row g-3 align-items-end">
         <div class="col-md-5">
@@ -83,7 +77,6 @@
       </div>
     </div>
 
-    <!-- CABEÇALHO COM FOTO, SÉRIE, PDT AUTOMÁTICO E NOTAS FIXAS DOS BIMESTRES -->
     <div class="card p-4" id="cardPerfilAluno" style="display:none;">
       <div class="row align-items-center">
         <div class="col-md-2 text-center">
@@ -97,17 +90,13 @@
             <span class="badge bg-secondary fs-6" id="lblSerieAluno">-</span>
             <span class="badge text-white fs-6" style="background-color: #0f766e;" id="lblPdtAluno"><i class="bi bi-person-badge-fill me-1"></i>PDT: -</span>
           </div>
-          
-          <!-- Caixas das Notas dos Bimestres (FIXAS - Calculadas sobre todo o bimestre) -->
           <div class="small fw-bold text-muted mt-2 mb-1"><i class="bi bi-pin-angle-fill text-success me-1"></i>Pontuação Atual Fixa por Bimestre:</div>
           <div id="containerNotasBimestre" class="d-flex gap-2 flex-wrap mb-3"></div>
-          
           <p class="small text-secondary mb-0"><i class="bi bi-info-circle me-1"></i>As notas dos bimestres acima são fixas (consideram todas as ocorrências do respectivo bimestre). Abaixo estão listadas as ocorrências do período pesquisado.</p>
         </div>
       </div>
     </div>
 
-    <!-- TABELA DE OCORRÊNCIAS -->
     <div class="card p-4" id="cardTabelaHistorico" style="display:none;">
       <div class="table-responsive">
         <table class="table table-bordered table-striped align-middle">
@@ -129,13 +118,18 @@
 
   <script>
     const API_URL = "https://script.google.com/macros/s/AKfycbyNedpZQsNt5lzHtrCSRfC4bWFEuCHHkZ4ygbm-DDm0NUBVARwS5GNFMu2zB3WutFE/exec";
+    const AVATAR_PADRAO = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
     let dbAlunosCache = [];
-    let todasOcorrenciasDoAluno = []; // Lista integral para manter as notas dos bimestres sempre fixas
-    let ocorrenciasFiltradasTabela = []; // Lista filtrada pelas datas apenas para exibição na tabela
+    let todasOcorrenciasDoAluno = [];
+    let ocorrenciasFiltradasTabela = [];
     let arrayBimestres = [];
     let mapPontuacoes = {};
     let mapaPdtPorSerie = {};
     let notasParaPdf = {};
+
+    function temFotoValida(str) {
+      return Boolean(str && (String(str).startsWith('data:image') || String(str).includes('http')));
+    }
 
     function formatarDataCurta(dataString) {
       if (!dataString) return '-';
@@ -185,7 +179,6 @@
         const elUser = document.getElementById('nomeUsuarioUi');
         if (elUser) elUser.innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeProf}`;
       }
-
       let dados = null;
       if (navigator.onLine) {
         try {
@@ -203,7 +196,6 @@
           }
         } catch (e) {}
       }
-
       if (!dados || !dados.alunos) {
         const cache = localStorage.getItem('cache_alunos_rac');
         if (cache) dbAlunosCache = JSON.parse(cache);
@@ -212,7 +204,6 @@
       } else {
         dbAlunosCache = dados.alunos || [];
       }
-
       let html = '';
       dbAlunosCache.forEach(a => html += `<option value="${a.nome}">${a.serie}</option>`);
       document.getElementById('listaAlunosDatalist').innerHTML = html;
@@ -222,7 +213,6 @@
       const nomeAluno = document.getElementById('filtroAluno').value.trim().toUpperCase();
       const dataIni = document.getElementById('filtroDataInicio').value;
       const dataFim = document.getElementById('filtroDataFim').value;
-
       if (!nomeAluno) return Swal.fire('Atenção', 'Selecione ou digite o nome de um aluno.', 'warning');
 
       Swal.fire({ title: 'A carregar histórico e calcular notas...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
@@ -232,7 +222,6 @@
         const reqBim = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'BIMESTRE' }) }).then(r => r.json());
         const reqPon = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'PONTUACAO' }) }).then(r => r.json());
         const reqPdt = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarPDT' }) }).then(r => r.json()).catch(() => null);
-
         const [resOco, resBim, resPon, resPdt] = await Promise.all([reqOco, reqBim, reqPon, reqPdt]);
 
         if (resPdt && Array.isArray(resPdt.lista)) {
@@ -241,21 +230,17 @@
           });
         }
 
-        // Guarda TODAS as ocorrências do aluno para o cálculo fixo das notas dos bimestres
         todasOcorrenciasDoAluno = (resOco || []).filter(o => String(o.aluno || "").trim().toUpperCase() === nomeAluno);
         arrayBimestres = resBim.lista || [];
-
         mapPontuacoes = {};
         if (resPon.lista) {
           resPon.lista.forEach(p => {
             let valorRaw = String(p.col2 || "0").replace(',', '.');
             let numPonto = parseFloat(valorRaw) || 0;
-            // Garante que o desconto sempre subtraia da nota 10 (mesmo se cadastrado positivo na planilha)
             mapPontuacoes[p.col1.toUpperCase().trim()] = -Math.abs(numPonto);
           });
         }
 
-        // Filtra apenas a lista que vai aparecer na tabela caso o usuário tenha escolhido Data Inicial ou Final
         ocorrenciasFiltradasTabela = [...todasOcorrenciasDoAluno];
         if (dataIni || dataFim) {
           let tsFiltroIni = dataIni ? parseDataBimestre(dataIni, false) : 0;
@@ -285,23 +270,21 @@
       document.getElementById('cardPerfilAluno').style.display = 'block';
       document.getElementById('cardTabelaHistorico').style.display = 'block';
       document.getElementById('btnPdf').style.display = 'inline-block';
-
       document.getElementById('lblNomeAluno').innerText = nomeAluno;
       document.getElementById('lblSerieAluno').innerText = serieAluno;
       document.getElementById('lblPdtAluno').innerHTML = `<i class="bi bi-person-badge-fill me-1"></i>PDT: ${pdtNome}`;
 
       const imgPerfil = document.getElementById('imgAlunoPerfil');
-      if (alunoObj && alunoObj.foto && alunoObj.foto.includes('http')) {
+      if (alunoObj && temFotoValida(alunoObj.foto)) {
         imgPerfil.src = alunoObj.foto;
         imgPerfil.style.display = 'inline-block';
       } else {
-        imgPerfil.src = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+        imgPerfil.src = AVATAR_PADRAO;
       }
 
-      // --- CÁLCULO FIXO DAS NOTAS DOS BIMESTRES (Usa sempre todasOcorrenciasDoAluno) ---
       notasParaPdf = {};
       arrayBimestres.forEach(b => {
-        notasParaPdf[b.col1] = 10.00; // Todos iniciam com 10,00 fixo
+        notasParaPdf[b.col1] = 10.00;
         b.tsIni = parseDataBimestre(b.col2, false);
         b.tsFim = parseDataBimestre(b.col3, true);
       });
@@ -317,10 +300,8 @@
         }
       });
 
-      // Desenha a tabela com as ocorrências do período filtrado
       const tbody = document.getElementById('tabelaHistoricoBody');
       tbody.innerHTML = '';
-
       if (ocorrenciasFiltradasTabela.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Nenhuma ocorrência encontrada para o período selecionado.</td></tr>';
       } else {
@@ -339,7 +320,6 @@
         });
       }
 
-      // Desenhar as Caixas das Notas Fixas dos Bimestres
       let htmlNotas = '';
       for (const [nomeBim, nota] of Object.entries(notasParaPdf)) {
         let classeCor = nota < 6 ? 'ruim' : '';
@@ -350,6 +330,24 @@
           </div>`;
       }
       document.getElementById('containerNotasBimestre').innerHTML = htmlNotas;
+    }
+
+    function toDataURL(url) {
+      return new Promise((resolve) => {
+        if (!url) return resolve(null);
+        let s = String(url).trim();
+        if (s.startsWith('data:image')) return resolve(s);
+        let xhr = new XMLHttpRequest();
+        xhr.onload = function() {
+          let reader = new FileReader();
+          reader.onloadend = function() { resolve(reader.result); };
+          reader.readAsDataURL(xhr.response);
+        };
+        xhr.onerror = function() { resolve(null); };
+        xhr.open('GET', s);
+        xhr.responseType = 'blob';
+        xhr.send();
+      });
     }
 
     async function gerarPdfHistorico() {
@@ -378,23 +376,29 @@
         doc.setFontSize(10); doc.setFont("helvetica", "normal");
         doc.text("Educação Pública de Qualidade", 45, 30);
         doc.setLineWidth(0.5); doc.line(14, 37, 196, 37);
-
         doc.setFontSize(12); doc.setFont("helvetica", "bold");
-        doc.text("HISTÓRICO DISCIPLINAR DO ALUNO (RAC)", 105, 45, { align: 'center' });
+        doc.text("HISTÓRICO DISCIPLINAR DO ALUNO (RAC)", 100, 45, { align: 'center' });
+
+        // Moldura e Foto 3x4 do Aluno no PDF
+        doc.setLineWidth(0.3);
+        doc.setFillColor(248, 250, 252);
+        doc.rect(162, 41, 22, 28, 'FD');
 
         const alunoObj = dbAlunosCache.find(a => a.nome.toUpperCase() === nomeAluno.toUpperCase());
-        if (alunoObj && alunoObj.foto && alunoObj.foto.includes('http')) {
+        if (alunoObj && temFotoValida(alunoObj.foto)) {
           try {
             let imgData = await toDataURL(alunoObj.foto);
-            if (imgData) doc.addImage(imgData, 'JPEG', 160, 42, 22, 28);
+            if (imgData) {
+              let fmt = imgData.includes('image/png') ? 'PNG' : 'JPEG';
+              doc.addImage(imgData, fmt, 162.5, 41.5, 21, 27);
+            }
           } catch (err) {}
         }
 
         doc.setFontSize(9.5); doc.setFont("helvetica", "normal");
         doc.text(`Aluno(a): ${nomeAluno}`, 14, 52);
-        doc.text(`Série: ${serieTexto}   |   ${pdtTexto}`, 14, 58);
+        doc.text(`Série: ${serieTexto} | ${pdtTexto}`, 14, 58);
 
-        // Pontuações Fixas dos Bimestres
         let resumoNotas = [];
         for (const [b, nota] of Object.entries(notasParaPdf)) {
           resumoNotas.push(`${b}: ${nota.toFixed(2).replace('.', ',')}`);
@@ -433,7 +437,6 @@
         doc.line(20, finalY, 90, finalY);
         doc.setFontSize(9); doc.setFont("helvetica", "bold");
         doc.text("Assinatura do Responsável", 55, finalY + 5, { align: 'center' });
-
         doc.line(120, finalY, 190, finalY);
         doc.text("Assinatura Professor/Gestão", 155, finalY + 5, { align: 'center' });
 
@@ -442,21 +445,6 @@
         console.error(erro);
         Swal.fire('Erro', 'Ocorreu um erro ao gerar o PDF.', 'error');
       }
-    }
-
-    function toDataURL(url) {
-      return new Promise((resolve, reject) => {
-        let xhr = new XMLHttpRequest();
-        xhr.onload = function() {
-          let reader = new FileReader();
-          reader.onloadend = function() { resolve(reader.result); };
-          reader.readAsDataURL(xhr.response);
-        };
-        xhr.onerror = function() { reject(new Error("CORS or Network error")); };
-        xhr.open('GET', url);
-        xhr.responseType = 'blob';
-        xhr.send();
-      });
     }
   </script>
 </body>
