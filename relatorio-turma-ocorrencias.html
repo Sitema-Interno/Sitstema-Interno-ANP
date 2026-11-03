@@ -9,11 +9,8 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  
-  <!-- Bibliotecas para gerar o PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; }
@@ -37,10 +34,7 @@
   </script>
 </head>
 <body>
-
   <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="" onerror="this.style.display='none'">
-
-  <!-- Cabeçalho -->
   <nav class="navbar navbar-custom">
     <div class="container-fluid">
       <span class="navbar-brand">
@@ -58,10 +52,9 @@
   </nav>
 
   <div class="main-container">
-    <!-- Filtros -->
     <div class="card p-4">
       <div class="card-header-custom d-flex justify-content-between align-items-center">
-        <h4 class="m-0 text-dark fs-5 fw-bold"><i class="bi bi-file-earmark-text text-primary me-2"></i>Gerar Relatório por Turma</h4>
+        <h4 class="m-0 text-dark fs-5 fw-bold"><i class="bi bi-file-earmark-text text-primary me-2"></i>Gerar Relatório por Turma (Com Fotos 3x4 e PDT)</h4>
         <span class="badge bg-teal text-white p-2 d-none" style="background-color: #0f766e;" id="badgePdtTurma">PDT: -</span>
       </div>
       <div class="row g-3 align-items-end">
@@ -95,11 +88,10 @@
       </div>
     </div>
 
-    <!-- Info Card -->
     <div class="card p-4 text-center text-muted py-5">
       <i class="bi bi-printer display-4 text-primary mb-3"></i>
-      <h5 class="fw-bold text-dark">Pronto para gerar relatórios</h5>
-      <p class="small mb-0">O cabeçalho de cada aluno exibe automaticamente o PDT da turma e a pontuação fixa atualizada de todos os bimestres.</p>
+      <h5 class="fw-bold text-dark">Pronto para gerar relatórios com Fotos 3x4</h5>
+      <p class="small mb-0">O cabeçalho de cada aluno exibe automaticamente a Foto 3x4, o PDT da turma e a pontuação fixa atualizada de todos os bimestres.</p>
     </div>
   </div>
 
@@ -107,6 +99,10 @@
     const API_URL = "https://script.google.com/macros/s/AKfycbyNedpZQsNt5lzHtrCSRfC4bWFEuCHHkZ4ygbm-DDm0NUBVARwS5GNFMu2zB3WutFE/exec";
     let cacheBimestres = [];
     let mapaPdtPorSerie = {};
+
+    function temFotoValida(str) {
+      return Boolean(str && (String(str).startsWith('data:image') || String(str).includes('http')));
+    }
 
     function formatarDataCurta(dataString) {
       if (!dataString) return '-';
@@ -156,12 +152,10 @@
         const elUser = document.getElementById('nomeUsuarioUi');
         if (elUser) elUser.innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeProf}`;
       }
-
       try {
         const reqSeries = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'SERIE' }) }).then(r => r.json());
         const reqBim = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'BIMESTRE' }) }).then(r => r.json());
         const reqPdt = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarPDT' }) }).then(r => r.json()).catch(() => null);
-
         const [resSeries, resBim, resPdt] = await Promise.all([reqSeries, reqBim, reqPdt]);
 
         if (resPdt && Array.isArray(resPdt.lista)) {
@@ -194,13 +188,11 @@
       const serie = document.getElementById('filtroSerie').value;
       const inputPdt = document.getElementById('inputPdtAuto');
       const badgePdt = document.getElementById('badgePdtTurma');
-
       if (!serie) {
         inputPdt.value = "";
         badgePdt.classList.add('d-none');
         return;
       }
-
       const nomePdt = mapaPdtPorSerie[String(serie).trim().toUpperCase()] || "Não atribuído";
       inputPdt.value = nomePdt;
       badgePdt.innerHTML = `<i class="bi bi-person-badge-fill me-1"></i>PDT da Turma: ${nomePdt}`;
@@ -209,6 +201,9 @@
 
     function getBase64Image(url) {
       return new Promise((resolve) => {
+        if (!url) return resolve(null);
+        let s = String(url).trim();
+        if (s.startsWith('data:image')) return resolve(s);
         let xhr = new XMLHttpRequest();
         xhr.onload = function() {
           let reader = new FileReader();
@@ -216,7 +211,7 @@
           reader.readAsDataURL(xhr.response);
         };
         xhr.onerror = function() { resolve(null); };
-        xhr.open('GET', url);
+        xhr.open('GET', s);
         xhr.responseType = 'blob';
         xhr.send();
       });
@@ -231,7 +226,7 @@
 
       Swal.fire({
         title: 'A gerar relatórios da turma...',
-        text: 'A processar ocorrências, PDT e notas fixas dos bimestres...',
+        text: 'A processar ocorrências, fotos 3x4, PDT e notas fixas dos bimestres...',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
       });
@@ -240,7 +235,6 @@
         const reqAlunos = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getFiltrosOcorrencias' }) }).then(r => r.json());
         const reqOco = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'buscarOcorrencias', filtros: { ignorarRestricao: true } }) }).then(r => r.json());
         const reqPon = fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'PONTUACAO' }) }).then(r => r.json());
-
         const [resAlunos, resOco, resPon] = await Promise.all([reqAlunos, reqOco, reqPon]);
 
         let todosAlunos = resAlunos.alunos || [];
@@ -276,10 +270,7 @@
         let alunosComOcorrencias = [];
 
         for (let aluno of alunosTurma) {
-          // Todas as ocorrências do aluno no ano (para o cálculo fixo das notas de todos os bimestres)
           let todasOcoAluno = ocorrenciasGlobais.filter(o => (o.aluno || "").trim().toUpperCase() === aluno.nome.toUpperCase());
-
-          // Ocorrências filtradas apenas para a tabela caso um bimestre específico seja escolhido
           let ocoTabela = [...todasOcoAluno];
           if (bimestreSelecionado !== "TODOS") {
             ocoTabela = todasOcoAluno.filter(o => {
@@ -292,7 +283,6 @@
           if (ocoTabela.length > 0) {
             let notasBim = {};
             arrayBimestres.forEach(b => { notasBim[b.col1] = 10.00; });
-
             todasOcoAluno.forEach(o => {
               let grav = (o.gravidade || "").trim().toUpperCase();
               let tsOco = extrairTimestamp(o.data);
@@ -303,7 +293,6 @@
                 if (notasBim[bimAlvo.col1] < 0) notasBim[bimAlvo.col1] = 0;
               }
             });
-
             alunosComOcorrencias.push({
               aluno: aluno,
               ocorrencias: ocoTabela,
@@ -319,16 +308,18 @@
 
         let logoBase64 = await getBase64Image('LOGO-removebg-preview.png');
         const dataGeracaoStr = new Date().toLocaleDateString('pt-BR');
-
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('portrait');
 
         for (let i = 0; i < alunosComOcorrencias.length; i++) {
           let item = alunosComOcorrencias[i];
+          let fotoAlunoBase64 = null;
+          if (temFotoValida(item.aluno.foto)) {
+            fotoAlunoBase64 = await getBase64Image(item.aluno.foto);
+          }
 
           async function desenharCabecalhoRodapePagina(numPaginaAluno) {
             if (i > 0 || numPaginaAluno === 2) doc.addPage();
-
             if (logoBase64) {
               try {
                 doc.setGState(new doc.GState({ opacity: 0.05 }));
@@ -336,32 +327,31 @@
                 doc.setGState(new doc.GState({ opacity: 1.0 }));
               } catch (e) {}
             }
-
             if (logoBase64) {
               try { doc.addImage(logoBase64, 'PNG', 14, 10, 25, 25); } catch (e) {}
             }
+
             doc.setFontSize(11); doc.setFont("helvetica", "bold");
             doc.text("ESCOLA DE ENSINO MÉDIO DE TEMPO INTEGRAL", 45, 17);
             doc.setFontSize(14); doc.text("AGOSTINHO NERES PORTELA", 45, 24);
             doc.setFontSize(10); doc.setFont("helvetica", "normal");
             doc.text("Educação Pública de Qualidade", 45, 30);
             doc.setLineWidth(0.5); doc.line(14, 37, 196, 37);
-
             doc.setFontSize(12); doc.setFont("helvetica", "bold");
-            doc.text("HISTÓRICO DISCIPLINAR DO ALUNO (RAC)", 105, 45, { align: 'center' });
+            doc.text("HISTÓRICO DISCIPLINAR DO ALUNO (RAC)", 100, 45, { align: 'center' });
 
+            // Moldura e Foto 3x4 do Aluno no PDF da Turma
             doc.setLineWidth(0.3);
             doc.setFillColor(248, 250, 252);
             doc.rect(162, 42, 22, 28, 'FD');
 
-            if (item.aluno.foto && item.aluno.foto.includes('http')) {
+            if (fotoAlunoBase64) {
               try {
-                let fotoAlunoBase64 = await getBase64Image(item.aluno.foto);
-                if (fotoAlunoBase64) doc.addImage(fotoAlunoBase64, 'JPEG', 163, 43, 20, 26);
+                let fmt = fotoAlunoBase64.includes('image/png') ? 'PNG' : 'JPEG';
+                doc.addImage(fotoAlunoBase64, fmt, 162.5, 42.5, 21, 27);
               } catch (e) {}
             }
 
-            // Nome, Série e PDT Automático
             doc.setFontSize(9); doc.setFont("helvetica", "bold");
             doc.text(`Aluno(a):`, 14, 50);
             doc.setFont("helvetica", "normal");
@@ -370,9 +360,8 @@
             doc.setFont("helvetica", "bold");
             doc.text(`Série:`, 14, 58);
             doc.setFont("helvetica", "normal");
-            doc.text(`${item.aluno.serie || serie}   |   PDT: ${pdtDaTurma}`, 26, 58);
+            doc.text(`${item.aluno.serie || serie} | PDT: ${pdtDaTurma}`, 26, 58);
 
-            // Resumo Fixo das Notas de Todos os Bimestres
             let resumoNotas = [];
             for (const [bName, notaVal] of Object.entries(item.notas)) {
               resumoNotas.push(`${bName}: ${notaVal.toFixed(2).replace('.', ',')}`);
@@ -394,7 +383,6 @@
             doc.line(20, finalY, 90, finalY);
             doc.setFontSize(9); doc.setFont("helvetica", "bold");
             doc.text("Assinatura do Responsável", 55, finalY + 5, { align: 'center' });
-
             doc.line(120, finalY, 190, finalY);
             doc.text("Assinatura PDT / Gestão", 155, finalY + 5, { align: 'center' });
           }
