@@ -17,7 +17,6 @@
       background-color: #f4f7f6;
       color: #333;
     }
-    /* CABEÇALHO */
     .navbar-custom {
       background-color: transparent;
       padding: 15px 20px;
@@ -90,6 +89,7 @@
     if (!usuarioLogado || (permissaoUser !== 'ADMINISTRADOR' && permissaoUser !== 'DIREÇÃO' && permissaoUser !== 'DIRECAO')) {
       window.location.href = 'index.html';
     }
+    const isApenasDirecao = (permissaoUser.includes('DIREÇ') || permissaoUser.includes('DIREC')) && !permissaoUser.includes('ADMIN');
   </script>
 </head>
 <body>
@@ -113,12 +113,12 @@
   </nav>
 
   <div class="main-container">
-    <h3 class="page-title">Painel do Administrador - Gestão de Funcionários</h3>
+    <h3 class="page-title">Gestão de Funcionários</h3>
 
     <!-- CARD DE CADASTRO / EDIÇÃO -->
     <div class="card">
       <div class="card-header-custom">
-        <span><i class="bi bi-person-plus-fill me-2"></i> Cadastrar / Editar Funcionário</span>
+        <span><i class="bi bi-person-plus-fill me-2"></i> Cadastrar Funcionário</span>
         <span id="badgeEdicao" class="badge bg-warning text-dark d-none">Modo de Edição Ativo</span>
       </div>
       <div class="card-body p-4">
@@ -141,10 +141,10 @@
             <div class="col-md-4">
               <label class="form-label">Permissão</label>
               <select id="funcPermissao" class="form-select" required>
-                <option value="">Selecione...</option>
-                <option value="Professor">Professor (Notas e Frequência)</option>
-                <option value="Administrador">Administrador</option>
-                <option value="Direção">Direção</option>
+                <option value="" id="optVazio">Selecione...</option>
+                <option value="Professor" id="optProfessor">Professor (Notas e Frequência)</option>
+                <option value="Administrador" id="optAdmin">Administrador</option>
+                <option value="Direção" id="optDirecao">Direção</option>
               </select>
             </div>
           </div>
@@ -159,7 +159,7 @@
     <!-- CARD DE CONSULTA -->
     <div class="card">
       <div class="card-header-custom d-flex justify-content-between">
-        <span><i class="bi bi-search me-2"></i> Consultar e Gerir Funcionários (<span id="contadorFunc">0</span>)</span>
+        <span><i class="bi bi-search me-2"></i> Consultar Funcionários (<span id="contadorFunc">0</span>)</span>
         <button class="btn btn-sm btn-outline-secondary" onclick="carregarFuncionarios()"><i class="bi bi-arrow-clockwise me-1"></i> Atualizar Lista</button>
       </div>
       <div class="card-body p-4">
@@ -191,7 +191,6 @@
   </div>
 
   <script>
-    // INTERCEPTADOR AUTOMÁTICO DE AUDITORIA: Injeta o nome do usuário logado em todas as ações
     const _fetchOriginal = window.fetch;
     window.fetch = function(url, options) {
       if (options && options.method === 'POST' && typeof options.body === 'string') {
@@ -209,9 +208,22 @@
     const API_URL = "https://script.google.com/macros/s/AKfycbyNedpZQsNt5lzHtrCSRfC4bWFEuCHHkZ4ygbm-DDm0NUBVARwS5GNFMu2zB3WutFE/exec";
     let funcionariosAtuais = [];
 
-    window.onload = () => carregarFuncionarios();
+    // Se o usuário logado for DIREÇÃO, trava o campo Permissão fixo em "Professor"
+    function aplicarTravaPermissaoDirecao() {
+      const selPerm = document.getElementById('funcPermissao');
+      if (isApenasDirecao && selPerm) {
+        selPerm.innerHTML = '<option value="Professor" selected>Professor (Fixo)</option>';
+        selPerm.value = 'Professor';
+        selPerm.disabled = true; // Trava visualmente para não alterar
+        selPerm.classList.add('bg-light', 'fw-bold', 'text-success');
+      }
+    }
 
-    // 1. CARREGAR FUNCIONÁRIOS DO BANCO DE DADOS
+    window.onload = () => {
+      aplicarTravaPermissaoDirecao();
+      carregarFuncionarios();
+    };
+
     async function carregarFuncionarios() {
       const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
       if (u) {
@@ -236,7 +248,7 @@
           document.getElementById('contadorFunc').innerText = funcionariosAtuais.length;
           filtrarTabela();
         } else {
-          tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Erro ao carregar dados: ${(dados && dados.error) || 'Verifique a implantação do script.'}</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Erro ao carregar dados.</td></tr>`;
         }
       } catch (e) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Falha na conexão com o servidor.</td></tr>';
@@ -252,10 +264,6 @@
         return;
       }
 
-      // Verifica se o usuário atual é puramente Direção (sem ser Admin)
-      const pUser = ((usuarioLogado && (usuarioLogado.permissao || usuarioLogado.usuario?.role || usuarioLogado.role)) || '').toUpperCase();
-      const apenasDirecao = pUser.includes('DIREÇ') || pUser.includes('DIREC');
-
       lista.forEach((f) => {
         const indexReal = funcionariosAtuais.findIndex(orig => orig.id === f.id && orig.email === f.email);
         let permNorm = String(f.permissao || '').toLowerCase();
@@ -264,9 +272,8 @@
 
         const idOuLinhaExclusao = String(f.id || f.linha || '').replace(/'/g, "\\'");
 
-        // Se for Direção, esconde os botões de ação na tabela (somente leitura para registos antigos)
         let botoesAcao = '';
-        if (!apenasDirecao) {
+        if (!isApenasDirecao) {
           botoesAcao = `
             <button type="button" class="btn btn-warning btn-sm me-1 shadow-sm" onclick="prepararEdicaoPorIndice(${indexReal})" title="Editar Funcionário">
               <i class="bi bi-pencil-fill"></i>
@@ -275,7 +282,7 @@
               <i class="bi bi-trash-fill"></i>
             </button>`;
         } else {
-          botoesAcao = `<span class="badge bg-light text-secondary border">Apenas Cadastro</span>`;
+          botoesAcao = `<span class="badge bg-light text-secondary border"><i class="bi bi-lock-fill me-1"></i>Somente Leitura</span>`;
         }
 
         tbody.innerHTML += `
@@ -292,7 +299,6 @@
       });
     }
 
-    // 3. PESQUISA NA TABELA
     function filtrarTabela() {
       const termo = (document.getElementById('buscaFuncionario').value || '').toLowerCase().trim();
       if (!termo) {
@@ -306,7 +312,6 @@
       renderizarTabela(filtrados);
     }
 
-    // 4. SALVAR NOVO OU ATUALIZAR EDIÇÃO NO BANCO DE DADOS
     document.getElementById('formFuncionario').addEventListener('submit', async (e) => {
       e.preventDefault();
 
@@ -317,6 +322,9 @@
       btnSalvar.disabled = true;
       btnSalvar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Salvando na Planilha...';
 
+      // Se for Direção, garante que o valor enviado seja sempre "Professor"
+      const permissaoEnviar = isApenasDirecao ? 'Professor' : document.getElementById('funcPermissao').value;
+
       const payload = {
         action: 'salvarFuncionario',
         dados: {
@@ -325,7 +333,7 @@
           nome: document.getElementById('funcNome').value.trim().toUpperCase(),
           contato: document.getElementById('funcContato').value.trim(),
           email: document.getElementById('funcEmail').value.trim().toLowerCase(),
-          permissao: document.getElementById('funcPermissao').value
+          permissao: permissaoEnviar
         }
       };
 
@@ -340,7 +348,7 @@
         if (resp && resp.success) {
           await Swal.fire({
             title: 'Sucesso!',
-            text: resp.msg || (idAtual ? 'Funcionário atualizado com sucesso!' : 'Funcionário cadastrado com sucesso!'),
+            text: resp.msg || 'Funcionário salvo com sucesso!',
             icon: 'success',
             confirmButtonColor: '#0f766e'
           });
@@ -361,8 +369,8 @@
       }
     });
 
-    // 5. PREPARAR FORMULÁRIO PARA EDIÇÃO
     function prepararEdicaoPorIndice(index) {
+      if (isApenasDirecao) return;
       const f = funcionariosAtuais[index];
       if (!f) return;
 
@@ -372,7 +380,6 @@
       document.getElementById('funcContato').value = f.contato || '';
       document.getElementById('funcEmail').value = f.email || '';
 
-      // Normaliza a permissão para selecionar corretamente no <select> mesmo se na planilha estiver em maiúsculas
       const perm = String(f.permissao || '').toUpperCase().trim();
       const selPerm = document.getElementById('funcPermissao');
       if (perm.includes('ADMIN')) selPerm.value = 'Administrador';
@@ -389,7 +396,6 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // 6. CANCELAR EDIÇÃO E LIMPAR FORMULÁRIO
     function cancelarEdicao() {
       document.getElementById('formFuncionario').reset();
       document.getElementById('funcId').value = "";
@@ -397,13 +403,15 @@
       document.getElementById('badgeEdicao').classList.add('d-none');
       document.getElementById('btnCancelar').classList.add('d-none');
 
+      aplicarTravaPermissaoDirecao();
+
       const btnSalvar = document.getElementById('btnSalvar');
       btnSalvar.classList.replace('btn-warning', 'btn-primary-custom');
       btnSalvar.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Registar Funcionário';
     }
 
-    // 7. EXCLUIR FUNCIONÁRIO
     async function excluirFuncionario(id) {
+      if (isApenasDirecao) return;
       const confirmacao = await Swal.fire({
         title: 'Tem a certeza?',
         text: "Este usuário perderá o acesso ao sistema!",
