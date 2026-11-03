@@ -277,7 +277,7 @@
   </div>
 
   <footer class="footer-custom">
-    <strong>&copy; <span id="anoAtual"></span> EEMTI Agostinho Neres Portela.</strong> Todos os direitos reservados.
+    <strong>© <span id="anoAtual"></span> EEMTI Agostinho Neres Portela.</strong> Todos os direitos reservados.
   </footer>
 
   <script>
@@ -1046,11 +1046,22 @@
           doc.text(`FILA ${c}`, xFila + larguraCard / 2, topoGrade + 3.8, { align: 'center' });
         }
 
-        // Carrega fotos 3x4 para o PDF (funciona tanto online quanto offline com Base64!)
+        // CARREGA AS FOTOS 3X4 COM BUSCA MULTI-CAMADA ROBUSTA
         const cacheFotos = {};
         for (const nomeAl of Object.values(mapaPosicoes)) {
           if (nomeAl && !cacheFotos[nomeAl]) {
-            const objAl = todosAlunosEscola.find(a => a.nome === nomeAl);
+            const nomeBusca = String(nomeAl).trim().toUpperCase();
+            
+            let objAl = (window.alunosDaSerieAtual || []).find(a => String(a.nome || "").trim().toUpperCase() === nomeBusca) ||
+                        (window.todosAlunosEscola || []).find(a => String(a.nome || "").trim().toUpperCase() === nomeBusca);
+
+            if (!objAl) {
+              try {
+                let cacheLocalAlunos = JSON.parse(localStorage.getItem('cache_alunos_mapa_v2') || localStorage.getItem('cache_alunos_rac') || '[]');
+                objAl = cacheLocalAlunos.find(a => String(a.nome || "").trim().toUpperCase() === nomeBusca);
+              } catch (e) {}
+            }
+
             if (objAl && temFotoValida(objAl.foto)) {
               cacheFotos[nomeAl] = await carregarImagemBase64(objAl.foto);
             }
