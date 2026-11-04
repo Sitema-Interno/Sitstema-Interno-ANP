@@ -277,7 +277,7 @@
   </div>
 
   <footer class="footer-custom">
-    <strong>© <span id="anoAtual"></span> EEMTI Agostinho Neres Portela.</strong> Todos os direitos reservados.
+    <strong>&copy; <span id="anoAtual"></span> EEMTI Agostinho Neres Portela.</strong> Todos os direitos reservados.
   </footer>
 
   <script>
@@ -304,14 +304,51 @@
     let perfilUsuarioLogado = "";
     let isGestaoEscolar = false;
     let turmasDoPdtLogado = [];
-    let todosAlunosEscola = [];
-    let alunosDaSerieAtual = [];
+    var todosAlunosEscola = [];
+    var alunosDaSerieAtual = [];
     let mapaPdtPorSerie = {};
     let posicoesOcupadas = {};
     let cacheMapeamentosGlobal = {};
 
     function temFotoValida(fotoStr) {
-      return Boolean(fotoStr && (String(fotoStr).startsWith('data:image') || String(fotoStr).includes('http')));
+      if (!fotoStr) return false;
+      const f = String(fotoStr).trim();
+      return (f.startsWith('data:image') || f.includes('http')) && !f.includes('149071.png');
+    }
+
+    // Localiza o registro do aluno com foto em qualquer lista disponível (Turma, Escola ou Caches Locais)
+    function buscarObjetoAlunoComFoto(nomeAluno, serieAlvo) {
+      const nBusca = String(nomeAluno || "").trim().toUpperCase();
+      const sBusca = String(serieAlvo || "").trim().toUpperCase();
+      if (!nBusca) return null;
+
+      let cands = [];
+      if (Array.isArray(alunosDaSerieAtual)) cands = cands.concat(alunosDaSerieAtual);
+      if (Array.isArray(todosAlunosEscola)) cands = cands.concat(todosAlunosEscola);
+
+      try {
+        const c1 = JSON.parse(localStorage.getItem('cache_alunos_mapa_v2') || '[]');
+        const c2 = JSON.parse(localStorage.getItem('cache_alunos_rac') || '[]');
+        cands = cands.concat(c1, c2);
+      } catch (e) {}
+
+      // 1º Prioridade: Mesmo Nome + Mesma Série + Com Foto Válida
+      let achou = cands.find(a =>
+        String(a.nome || "").trim().toUpperCase() === nBusca &&
+        (!sBusca || String(a.serie || "").trim().toUpperCase() === sBusca) &&
+        temFotoValida(a.foto)
+      );
+      if (achou) return achou;
+
+      // 2º Prioridade: Mesmo Nome em qualquer série + Com Foto Válida
+      achou = cands.find(a =>
+        String(a.nome || "").trim().toUpperCase() === nBusca &&
+        temFotoValida(a.foto)
+      );
+      if (achou) return achou;
+
+      // 3º Fallback: Mesmo Nome mesmo sem foto
+      return cands.find(a => String(a.nome || "").trim().toUpperCase() === nBusca) || null;
     }
 
     function atualizarStatusRedeUI() {
@@ -371,6 +408,7 @@
           if (resAlunos && Array.isArray(resAlunos.alunos)) {
             todosAlunosEscola = resAlunos.alunos;
             localStorage.setItem('cache_alunos_mapa_v2', JSON.stringify(todosAlunosEscola));
+            localStorage.setItem('cache_alunos_rac', JSON.stringify(todosAlunosEscola));
           }
 
           if (resPdt && Array.isArray(resPdt.lista)) {
@@ -526,6 +564,7 @@
       const pdt = mapaPdtPorSerie[serie.toUpperCase()] || "Não atribuído";
       inputPdt.value = pdt;
 
+      // Se a lista de alunos da série ainda não tiver fotos em Base64, busca também via getAlunosParaEdicao
       alunosDaSerieAtual = todosAlunosEscola
         .filter(a => String(a.serie || "").trim().toUpperCase() === serie.toUpperCase())
         .sort((a, b) => a.nome.localeCompare(b.nome));
@@ -666,6 +705,7 @@
     }
 
     function atualizarInterfaceCarteiras() {
+      const serie = document.getElementById('selectSerie').value;
       const numColunas = parseInt(document.getElementById('selectColunas').value, 10) || 5;
       const numLinhas = parseInt(document.getElementById('selectLinhas').value, 10) || 7;
 
@@ -697,9 +737,9 @@
 
           if (alunoAtual) {
             cardEl.classList.add('ocupada');
-            const objAluno = alunosDaSerieAtual.find(a => a.nome === alunoAtual) || todosAlunosEscola.find(a => a.nome === alunoAtual);
+            const objAluno = buscarObjetoAlunoComFoto(alunoAtual, serie);
             const urlFoto = (objAluno && temFotoValida(objAluno.foto)) ? objAluno.foto : AVATAR_PADRAO;
-            molduraEl.innerHTML = `<img src="${urlFoto}" alt="${alunoAtual}" onerror="this.src='${AVATAR_PADRAO}'">`;
+            molduraEl.innerHTML = `<img src="${urlFoto}" data-nome-aluno="${alunoAtual}" alt="${alunoAtual}" crossorigin="anonymous" onerror="this.src='${AVATAR_PADRAO}'">`;
           } else {
             cardEl.classList.remove('ocupada');
             molduraEl.innerHTML = `<div class="placeholder-3x4"><i class="bi bi-person-bounding-box"></i>Foto 3x4<br>Vazio</div>`;
@@ -924,7 +964,7 @@
         for (let c = 1; c <= numColunas; c++) {
           const posKey = `F${c}-C${l}`;
           const nomeAluno = posicoes[posKey] || "";
-          const objAluno = todosAlunosEscola.find(a => a.nome === nomeAluno);
+          const objAluno = buscarObjetoAlunoComFoto(nomeAluno, serie);
           const urlFoto = (objAluno && temFotoValida(objAluno.foto)) ? objAluno.foto : AVATAR_PADRAO;
 
           htmlC += `
@@ -932,7 +972,7 @@
               <span class="carteira-badge-pos">Fila ${c} • ${l}ª Cart.</span>
               <div class="moldura-3x4">
                 ${nomeAluno
-                  ? `<img src="${urlFoto}" alt="${nomeAluno}" onerror="this.src='${AVATAR_PADRAO}'">`
+                  ? `<img src="${urlFoto}" data-nome-aluno="${nomeAluno}" alt="${nomeAluno}" crossorigin="anonymous" onerror="this.src='${AVATAR_PADRAO}'">`
                   : `<div class="placeholder-3x4"><i class="bi bi-person-bounding-box"></i>Livre</div>`
                 }
               </div>
@@ -947,22 +987,66 @@
       cardVis.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    function carregarImagemBase64(url) {
+    // CONVERSOR UNIVERSAL DE FOTOS PARA O PDF (Suporta Base64, Links AppSheet via Proxy CORS e Canvas)
+    function converterQualquerFotoParaJpegPdf(urlOuBase64) {
       return new Promise((resolve) => {
-        if (!url) return resolve(null);
-        let s = String(url).trim();
-        if (s.startsWith('data:image')) return resolve(s);
-        let xhr = new XMLHttpRequest();
-        xhr.onload = function() {
-          let reader = new FileReader();
-          reader.onloadend = function() { resolve(reader.result); };
-          reader.onerror = function() { resolve(null); };
-          reader.readAsDataURL(xhr.response);
-        };
-        xhr.onerror = function() { resolve(null); };
-        xhr.open('GET', s);
-        xhr.responseType = 'blob';
-        xhr.send();
+        if (!urlOuBase64) return resolve(null);
+        let s = String(urlOuBase64).trim();
+        if (s.includes('149071.png')) return resolve(null);
+
+        function desenharNoCanvas3x4(imgSource) {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = function() {
+            try {
+              const canvas = document.createElement('canvas');
+              canvas.width = 180;
+              canvas.height = 240;
+              const ctx = canvas.getContext('2d');
+              ctx.fillStyle = "#ffffff";
+              ctx.fillRect(0, 0, 180, 240);
+              ctx.drawImage(img, 0, 0, 180, 240);
+              resolve(canvas.toDataURL('image/jpeg', 0.85));
+            } catch (err) {
+              resolve(s.startsWith('data:image') ? s : null);
+            }
+          };
+          img.onerror = function() {
+            resolve(null);
+          };
+          img.src = imgSource;
+        }
+
+        // 1. Se já for Base64 data:image, normaliza num canvas JPEG limpo para o jsPDF nunca recusar
+        if (s.startsWith('data:image')) {
+          return desenharNoCanvas3x4(s);
+        }
+
+        // 2. Se for um link externo (ex: AppSheet ou Drive), tenta primeiro via Proxy CORS de Imagem (wsrv.nl)
+        // pois o AppSheet bloqueia requisições XHR diretas do navegador!
+        if (s.startsWith('http://') || s.startsWith('https://')) {
+          const proxyUrl = "https://wsrv.nl/?url=" + encodeURIComponent(s) + "&w=180&h=240&fit=cover&output=jpg";
+          let xhr = new XMLHttpRequest();
+          xhr.onload = function() {
+            if (xhr.status === 200) {
+              let reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.onerror = () => desenharNoCanvas3x4(s);
+              reader.readAsDataURL(xhr.response);
+            } else {
+              desenharNoCanvas3x4(s);
+            }
+          };
+          xhr.onerror = function() {
+            desenharNoCanvas3x4(s);
+          };
+          xhr.open('GET', proxyUrl);
+          xhr.responseType = 'blob';
+          xhr.send();
+          return;
+        }
+
+        desenharNoCanvas3x4(s);
       });
     }
 
@@ -992,19 +1076,40 @@
     async function gerarDocumentoPdfMapeamento(serie, pdt, numColunas, numLinhas, mapaPosicoes, ultimaAtualizacaoStr) {
       Swal.fire({
         title: 'Gerando Mapa de Sala em PDF...',
-        text: 'Processando fotos 3x4 e posicionamento das carteiras...',
+        text: 'Baixando e processando todas as fotos 3x4 da turma...',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
       });
 
       try {
+        // Se estiver online, faz um refresh rápido das fotos da série direto do servidor para garantir fotos recém-salvas
+        if (navigator.onLine) {
+          try {
+            const resFrescos = await fetch(API_URL + "?v=" + new Date().getTime(), {
+              method: 'POST',
+              body: JSON.stringify({ action: 'getFiltrosOcorrencias' })
+            }).then(r => r.json()).catch(() => null);
+            if (resFrescos && Array.isArray(resFrescos.alunos)) {
+              todosAlunosEscola = resFrescos.alunos;
+              localStorage.setItem('cache_alunos_mapa_v2', JSON.stringify(todosAlunosEscola));
+            }
+          } catch (e) {}
+        }
+
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('landscape', 'mm', 'a4');
 
-        const logoBase64 = await carregarImagemBase64('LOGO-removebg-preview.png');
-        if (logoBase64) {
-          try { doc.addImage(logoBase64, 'PNG', 12, 7, 18, 18); } catch (e) {}
-        }
+        // Logo da Escola
+        try {
+          const imgLogoDom = document.querySelector('.logo-escola');
+          if (imgLogoDom && imgLogoDom.complete && imgLogoDom.naturalWidth > 0) {
+            const cLogo = document.createElement('canvas');
+            cLogo.width = imgLogoDom.naturalWidth;
+            cLogo.height = imgLogoDom.naturalHeight;
+            cLogo.getContext('2d').drawImage(imgLogoDom, 0, 0);
+            doc.addImage(cLogo.toDataURL('image/png'), 'PNG', 12, 7, 18, 18);
+          }
+        } catch (e) {}
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(12);
@@ -1046,27 +1151,19 @@
           doc.text(`FILA ${c}`, xFila + larguraCard / 2, topoGrade + 3.8, { align: 'center' });
         }
 
-        // CARREGA AS FOTOS 3X4 COM BUSCA MULTI-CAMADA ROBUSTA
+        // CARREGAMENTO PARALELO DE TODAS AS FOTOS 3X4 DOS ALUNOS ALOCADOS
         const cacheFotos = {};
-        for (const nomeAl of Object.values(mapaPosicoes)) {
-          if (nomeAl && !cacheFotos[nomeAl]) {
-            const nomeBusca = String(nomeAl).trim().toUpperCase();
-            
-            let objAl = (window.alunosDaSerieAtual || []).find(a => String(a.nome || "").trim().toUpperCase() === nomeBusca) ||
-                        (window.todosAlunosEscola || []).find(a => String(a.nome || "").trim().toUpperCase() === nomeBusca);
+        const nomesUnicosNoMapa = [...new Set(Object.values(mapaPosicoes).filter(Boolean))];
 
-            if (!objAl) {
-              try {
-                let cacheLocalAlunos = JSON.parse(localStorage.getItem('cache_alunos_mapa_v2') || localStorage.getItem('cache_alunos_rac') || '[]');
-                objAl = cacheLocalAlunos.find(a => String(a.nome || "").trim().toUpperCase() === nomeBusca);
-              } catch (e) {}
-            }
-
-            if (objAl && temFotoValida(objAl.foto)) {
-              cacheFotos[nomeAl] = await carregarImagemBase64(objAl.foto);
+        await Promise.all(nomesUnicosNoMapa.map(async (nomeAl) => {
+          const objAl = buscarObjetoAlunoComFoto(nomeAl, serie);
+          if (objAl && temFotoValida(objAl.foto)) {
+            const b64 = await converterQualquerFotoParaJpegPdf(objAl.foto);
+            if (b64) {
+              cacheFotos[nomeAl] = b64;
             }
           }
-        }
+        }));
 
         const inicioYCarteiras = topoGrade + 7;
         for (let l = 1; l <= numLinhas; l++) {
@@ -1103,9 +1200,12 @@
 
             if (nomeOcupante && cacheFotos[nomeOcupante]) {
               try {
-                let formatoImg = cacheFotos[nomeOcupante].includes('image/png') ? 'PNG' : 'JPEG';
-                doc.addImage(cacheFotos[nomeOcupante], formatoImg, xFoto + 0.2, yFoto + 0.2, largFoto - 0.4, altFoto - 0.4);
-              } catch (e) {}
+                doc.addImage(cacheFotos[nomeOcupante], 'JPEG', xFoto + 0.2, yFoto + 0.2, largFoto - 0.4, altFoto - 0.4);
+              } catch (e) {
+                try {
+                  doc.addImage(cacheFotos[nomeOcupante], 'PNG', xFoto + 0.2, yFoto + 0.2, largFoto - 0.4, altFoto - 0.4);
+                } catch (e2) {}
+              }
             } else if (nomeOcupante) {
               doc.setFontSize(5);
               doc.setTextColor(15, 118, 110);
