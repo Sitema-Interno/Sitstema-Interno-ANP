@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta name="theme-color" content="#0f766e">
+  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monitoramento de Frequência e Notas das Eletivas - EEMTI Agostinho Neres Portela</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    body { font-family: 'Inter', sans-serif; background-color: #f4f7f6; color: #333; display: flex; flex-direction: column; min-height: 100vh; margin: 0; position: relative; }
+    .watermark-bg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50vw; max-width: 550px; opacity: 0.08; z-index: -1; pointer-events: none; mix-blend-mode: multiply; }
+    .navbar-custom { background-color: rgba(255, 255, 255, 0.96); padding: 15px 20px; border-bottom: 1px solid rgba(0, 0, 0, 0.05); }
+    .navbar-brand { font-weight: 700; font-size: 1.5rem; color: #1e293b !important; display: flex; align-items: center; gap: 15px; }
+    .sub-text { font-size: 0.8rem; font-weight: 500; color: #64748b; margin-top: -3px; }
+    .logo-escola { height: 55px; object-fit: contain; mix-blend-mode: multiply; }
+    .main-container { padding: 25px 15px 40px 15px; max-width: 1400px; margin: 0 auto; width: 100%; flex: 1; }
+    .card { border: none; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04); margin-bottom: 24px; background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(5px); }
+    .card-header-custom { border-bottom: 1px solid #eaeaea; padding-bottom: 14px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    .form-label { font-size: 0.8rem; font-weight: 700; color: #475569; margin-bottom: 4px; }
+    .form-control, .form-select { border-radius: 8px; border: 1px solid #ced4da; padding: 8px 12px; font-size: 0.88rem; }
+    .form-control:focus, .form-select:focus { border-color: #0f766e; box-shadow: 0 0 0 0.2rem rgba(15, 118, 110, 0.15); }
+    .btn-tema { background-color: #0f766e; color: white; border: none; font-weight: 600; border-radius: 8px; }
+    .btn-tema:hover { background-color: #0d645e; color: white; }
+    .kpi-card { border-left: 5px solid #0f766e; padding: 16px 20px; border-radius: 12px; background: #fff; box-shadow: 0 3px 14px rgba(0,0,0,0.04); }
+    .kpi-card.danger { border-left-color: #e11d48; }
+    .kpi-card.success { border-left-color: #10b981; }
+    .kpi-card.warning { border-left-color: #f59e0b; }
+    .chip-data-pendente {
+      display: inline-flex; align-items: center; gap: 5px;
+      background-color: #fff1f2; color: #be123c; border: 1px solid #fecdd3;
+      border-radius: 6px; padding: 3px 8px; font-size: 0.76rem; font-weight: 700;
+      margin: 2px;
+    }
+    .btn-excluir-data-chip {
+      border: none; background: #ffe4e6; color: #e11d48; border-radius: 50%;
+      width: 17px; height: 17px; font-size: 0.7rem; line-height: 1;
+      display: inline-flex; align-items: center; justify-content: center;
+      cursor: pointer; padding: 0; transition: all 0.15s;
+    }
+    .btn-excluir-data-chip:hover { background: #e11d48; color: #fff; }
+    .table th { background-color: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; }
+    .table td { vertical-align: middle; font-size: 0.87rem; }
+    .progress-notas { height: 8px; border-radius: 99px; background-color: #e2e8f0; overflow: hidden; }
+    .footer-custom { text-align: center; padding: 20px; font-size: 0.85rem; color: #64748b; border-top: 1px solid rgba(0, 0, 0, 0.05); background: rgba(255, 255, 255, 0.8); }
+  </style>
+
+  <script>
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+    if (!usuarioLogado) window.location.href = 'login.html';
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  </script>
+</head>
+<body>
+  <img src="LOGO-removebg-preview.png" class="watermark-bg" alt="" onerror="this.style.display='none'">
+
+  <nav class="navbar navbar-custom">
+    <div class="container-fluid max-w-1400 mx-auto">
+      <span class="navbar-brand">
+        <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
+        <div>
+          Monitoramento de Frequência e Notas das Eletivas
+          <div class="sub-text">EEMTI Agostinho Neres Portela</div>
+        </div>
+      </span>
+      <div class="d-flex align-items-center gap-3">
+        <span class="badge bg-light text-secondary border px-3 py-2" id="badgeNivelAcesso">
+          <i class="bi bi-shield-check me-1"></i>Verificando permissão...
+        </span>
+        <span class="text-muted fw-semibold small d-none d-md-block" id="nomeUsuarioUi">
+          <i class="bi bi-person-circle me-1"></i>A carregar...
+        </span>
+        <a href="index.html" class="btn btn-outline-secondary btn-sm fw-semibold rounded-pill px-3 shadow-sm">
+          <i class="bi bi-house-door-fill me-1"></i> Início
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main-container">
+    <!-- CARDS DE INDICADORES DO SEMESTRE -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="kpi-card">
+          <div class="text-muted small fw-bold text-uppercase">Total de Eletivas</div>
+          <div class="fs-3 fw-bold text-dark mt-1" id="kpiTotalEletivas">0</div>
+          <small class="text-secondary" id="kpiSubSemestre">Semestre Selecionado</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-card success">
+          <div class="text-muted small fw-bold text-uppercase">Frequência em Dia</div>
+          <div class="fs-3 fw-bold text-success mt-1" id="kpiFreqEmDia">0</div>
+          <small class="text-secondary">Sem datas pendentes</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-card danger">
+          <div class="text-muted small fw-bold text-uppercase">Com Atraso de Frequência</div>
+          <div class="fs-3 fw-bold text-danger mt-1" id="kpiFreqAtraso">0</div>
+          <small class="text-secondary">Possuem datas sem chamada</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi-card warning">
+          <div class="text-muted small fw-bold text-uppercase">Notas 100% Cadastradas</div>
+          <div class="fs-3 fw-bold text-dark mt-1" id="kpiNotasCompletas">0</div>
+          <small class="text-secondary">Todos os alunos com nota</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILTROS E GESTÃO DE CALENDÁRIO / FERIADOS -->
+    <div class="card p-4">
+      <div class="card-header-custom">
+        <div>
+          <h5 class="fw-bold m-0 text-dark">
+            <i class="bi bi-sliders text-primary me-2"></i>Filtros de Monitoramento e Período de Referência
+          </h5>
+          <small class="text-muted">Filtre as eletivas por semestre, dia da semana, status de pendência ou pesquise pelo nome do professor.</small>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <!-- Botão visível apenas para Direção e Administrador -->
+          <button class="btn btn-outline-warning text-dark btn-sm fw-bold d-none" id="btnGerenciarFeriados" onclick="abrirModalFeriados()">
+            <i class="bi bi-calendar-x-fill text-danger me-1"></i>Gerenciar Feriados / Datas Excluídas (<span id="badgeQtdFeriados">0</span>)
+          </button>
+          <button class="btn btn-danger btn-sm fw-bold" onclick="exportarPdfMonitoramento()">
+            <i class="bi bi-file-earmark-pdf-fill me-1"></i>Baixar Relatório PDF
+          </button>
+        </div>
+      </div>
+
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-sm-6 col-md-2">
+          <label class="form-label">Semestre Letivo</label>
+          <select id="selectSemestre" class="form-select fw-bold" onchange="aoTrocarSemestre()">
+            <option value="">Carregando...</option>
+          </select>
+        </div>
+
+        <div class="col-6 col-sm-6 col-md-2">
+          <label class="form-label">Início das Aulas</label>
+          <input type="date" id="inputDataInicio" class="form-control">
+        </div>
+
+        <div class="col-6 col-sm-6 col-md-2">
+          <label class="form-label">Data Limite (Até)</label>
+          <input type="date" id="inputDataFim" class="form-control">
+        </div>
+
+        <div class="col-6 col-sm-4 col-md-2">
+          <label class="form-label">Dia da Eletiva</label>
+          <select id="filtroDiaSemana" class="form-select" onchange="renderizarTabelaMonitoramento()">
+            <option value="">Todos os Dias</option>
+            <option value="SEGUNDA">Segunda-feira</option>
+            <option value="TERÇA">Terça-feira</option>
+            <option value="QUARTA">Quarta-feira</option>
+            <option value="QUINTA">Quinta-feira</option>
+            <option value="SEXTA">Sexta-feira</option>
+          </select>
+        </div>
+
+        <div class="col-6 col-sm-4 col-md-2">
+          <label class="form-label">Status de Pendência</label>
+          <select id="filtroStatus" class="form-select" onchange="renderizarTabelaMonitoramento()">
+            <option value="">Todas as Eletivas</option>
+            <option value="ATRASO_FREQ">Frequência em Atraso</option>
+            <option value="EM_DIA_FREQ">Frequência em Dia</option>
+            <option value="PENDENTE_NOTA">Com Notas Pendentes</option>
+            <option value="COMPLETA_NOTA">Notas 100% Cadastradas</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-sm-4 col-md-2 d-grid">
+          <button class="btn btn-tema py-2" onclick="carregarDadosMonitoramento(false)">
+            <i class="bi bi-funnel-fill me-1"></i>Filtrar Período
+          </button>
+        </div>
+      </div>
+
+      <div class="row g-2 mt-2">
+        <div class="col-12">
+          <input type="text" id="inputBuscaTexto" class="form-control form-control-sm" placeholder="Pesquisar por nome da eletiva ou nome do professor..." oninput="renderizarTabelaMonitoramento()">
+        </div>
+      </div>
+    </div>
+
+    <!-- TABELA PRINCIPAL DE MONITORAMENTO -->
+    <div class="card p-4">
+      <div class="card-header-custom">
+        <div>
+          <h5 class="fw-bold m-0 text-dark">
+            <i class="bi bi-clipboard2-check-fill text-success me-2"></i>Painel de Acompanhamento por Eletiva
+          </h5>
+          <small class="text-muted" id="subtituloPermissaoTabela">
+            Visualize os dias de frequência realizados, as datas pendentes e a quantidade de notas lançadas.
+          </small>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover border align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Eletiva / Professor</th>
+              <th class="text-center">Dia da Semana</th>
+              <th class="text-center" style="width: 150px;">Frequências Feitas</th>
+              <th class="text-center" style="width: 150px;">Status / Atraso</th>
+              <th style="min-width: 280px;" id="thDatasPendentes">Datas Sem Frequência</th>
+              <th class="text-center" style="width: 220px;">Notas Cadastradas (Válidas)</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyMonitoramento">
+            <tr>
+              <td colspan="6" class="text-center py-5 text-muted">
+                <div class="spinner-border spinner-border-sm me-2"></div>Calculando frequências e notas das eletivas...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE GESTÃO DE FERIADOS / DATAS DISPENSADAS (EXCLUSIVO DIREÇÃO E ADMIN) -->
+  <div class="modal fade" id="modalFeriados" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-dark text-white">
+          <h5 class="modal-title fw-bold">
+            <i class="bi bi-calendar-x me-2 text-warning"></i>Gerenciar Feriados e Dias Não Letivos das Eletivas
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form class="row g-2 align-items-end mb-4 p-3 bg-light rounded border" onsubmit="event.preventDefault(); adicionarFeriadoManualModal();">
+            <div class="col-md-4">
+              <label class="form-label small fw-bold">Data do Feriado / Dispensa</label>
+              <input type="date" id="feriadoDataInput" class="form-control form-control-sm" required>
+            </div>
+            <div class="col-md-5">
+              <label class="form-label small fw-bold">Motivo (Ex: Feriado Nacional, Formação...)</label>
+              <input type="text" id="feriadoMotivoInput" class="form-control form-control-sm" required placeholder="Ex: Feriado de Segunda-feira">
+            </div>
+            <div class="col-md-3 d-grid">
+              <button type="submit" class="btn btn-danger btn-sm fw-bold">
+                <i class="bi bi-plus-circle me-1"></i>Excluir Data Letiva
+              </button>
+            </div>
+          </form>
+
+          <h6 class="fw-bold text-secondary small text-uppercase mb-2">Datas Atualmente Excluídas da Cobrança de Frequência:</h6>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Dia da Semana</th>
+                  <th>Aplicado em</th>
+                  <th>Motivo</th>
+                  <th class="text-end">Ação</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyFeriadosModal">
+                <tr><td colspan="5" class="text-center text-muted py-3">Nenhum feriado cadastrado.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DETALHES DE ALUNOS SEM NOTA OU DATAS FEITAS -->
+  <div class="modal fade" id="modalDetalhesEletiva" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold" id="tituloModalDetalhes">Detalhes da Eletiva</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="corpoModalDetalhes"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer-custom">
+    <strong>© <span id="anoAtual"></span> EEMTI Agostinho Neres Portela.</strong> Todos os direitos reservados.
+  </footer>
+
+  <script>
+    const _fetchOriginal = window.fetch;
+    window.fetch = function(url, options) {
+      if (options && options.method === 'POST' && typeof options.body === 'string') {
+        try {
+          const uLog = JSON.parse(localStorage.getItem('usuarioLogado') || '{}');
+          const nomeAutor = (uLog.nome || uLog.usuario?.nome || uLog.col1 || "").toUpperCase();
+          let bodyObj = JSON.parse(options.body);
+          if (nomeAutor && !bodyObj.usuarioLogado) bodyObj.usuarioLogado = nomeAutor;
+          options.body = JSON.stringify(bodyObj);
+        } catch (e) {}
+      }
+      return _fetchOriginal(url, options);
+    };
+
+    document.getElementById('anoAtual').innerText = new Date().getFullYear();
+    const API_URL = "https://script.google.com/macros/s/AKfycbyNedpZQsNt5lzHtrCSRfC4bWFEuCHHkZ4ygbm-DDm0NUBVARwS5GNFMu2zB3WutFE/exec";
+
+    let listaEletivasMonitoramento = [];
+    let listaFeriadosGlobal = [];
+    let modalFeriadosInstancia;
+    let modalDetalhesInstancia;
+    let podeEditarMonitoramento = false; // True apenas para Direção e Administrador
+
+    function verificarPermissaoUsuario() {
+      const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
+      if (!u) return;
+
+      const nomeProf = String(u.nome || u.usuario?.nome || u.col1 || "Usuário").trim();
+      const permissaoRaw = String(u.permissao || u.role || u.usuario?.role || u.perfil || "Professor").trim().toUpperCase();
+
+      document.getElementById('nomeUsuarioUi').innerHTML = `<i class="bi bi-person-circle me-1"></i>${nomeProf}`;
+
+      // Apenas DIREÇÃO e ADMINISTRADOR podem editar/excluir datas de feriados
+      podeEditarMonitoramento = (
+        permissaoRaw.includes('ADMIN') ||
+        permissaoRaw.includes('DIREÇÃO') ||
+        permissaoRaw.includes('DIRECAO') ||
+        permissaoRaw.includes('GESTÃO') ||
+        permissaoRaw.includes('GESTAO')
+      );
+
+      const badgeNivel = document.getElementById('badgeNivelAcesso');
+      const btnFeriados = document.getElementById('btnGerenciarFeriados');
+      const subTabela = document.getElementById('subtituloPermissaoTabela');
+      const thDatas = document.getElementById('thDatasPendentes');
+
+      if (podeEditarMonitoramento) {
+        badgeNivel.className = "badge bg-success-subtle text-success border border-success-subtle px-3 py-2";
+        badgeNivel.innerHTML = `<i class="bi bi-unlock-fill me-1"></i>Modo Edição (${permissaoRaw})`;
+        btnFeriados.classList.remove('d-none');
+        subTabela.innerHTML = `<b>Permissão de Edição Ativa:</b> Se alguma data listada em vermelho foi feriado ou ponto facultativo, clique no botão <b>"×"</b> ao lado da data para excluí-la da cobrança!`;
+        thDatas.innerText = "Datas Sem Frequência (Clique no × se foi Feriado)";
+      } else {
+        badgeNivel.className = "badge bg-secondary-subtle text-secondary border px-3 py-2";
+        badgeNivel.innerHTML = `<i class="bi bi-eye-fill me-1"></i>Modo Consulta (Professor)`;
+        btnFeriados.classList.add('d-none');
+        subTabela.innerHTML = `<b>Modo Consulta:</b> Utilize os filtros acima para consultar o andamento das frequências e notas das eletivas.`;
+        thDatas.innerText = "Datas Sem Frequência";
+      }
+    }
+
+    window.onload = async function() {
+      modalFeriadosInstancia = new bootstrap.Modal(document.getElementById('modalFeriados'));
+      modalDetalhesInstancia = new bootstrap.Modal(document.getElementById('modalDetalhesEletiva'));
+
+      verificarPermissaoUsuario();
+      await carregarDadosMonitoramento(true);
+    };
+
+    async function aoTrocarSemestre() {
+      document.getElementById('inputDataInicio').value = "";
+      document.getElementById('inputDataFim').value = "";
+      await carregarDadosMonitoramento(false);
+    }
+
+    async function carregarDadosMonitoramento(primeiraCarga) {
+      const tbody = document.getElementById('tbodyMonitoramento');
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="text-center py-5 text-muted">
+            <div class="spinner-border spinner-border-sm me-2"></div>Sincronizando frequências, calendário de dias da semana e notas válidas...
+          </td>
+        </tr>`;
+
+      const semSel = primeiraCarga ? "" : document.getElementById('selectSemestre').value;
+      const dtIni = document.getElementById('inputDataInicio').value;
+      const dtFim = document.getElementById('inputDataFim').value;
+
+      try {
+        const res = await fetch(API_URL + "?v=" + new Date().getTime(), {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'getMonitoramentoEletivas',
+            semestre: semSel,
+            dataInicio: dtIni,
+            dataFim: dtFim
+          })
+        }).then(r => r.json());
+
+        if (res && res.success) {
+          const selSem = document.getElementById('selectSemestre');
+          if (Array.isArray(res.semestres) && res.semestres.length > 0) {
+            let htmlSem = '';
+            res.semestres.forEach(s => {
+              htmlSem += `<option value="${s}" ${s === res.semestreSelecionado ? 'selected' : ''}>${s}</option>`;
+            });
+            selSem.innerHTML = htmlSem;
+          }
+
+          if (res.dataInicioAplicada) document.getElementById('inputDataInicio').value = res.dataInicioAplicada;
+          if (res.dataFimAplicada) document.getElementById('inputDataFim').value = res.dataFimAplicada;
+
+          listaEletivasMonitoramento = Array.isArray(res.eletivas) ? res.eletivas : [];
+          listaFeriadosGlobal = Array.isArray(res.feriados) ? res.feriados : [];
+
+          document.getElementById('badgeQtdFeriados').innerText = listaFeriadosGlobal.length;
+          renderizarTabelaMonitoramento();
+          renderizarTabelaFeriadosModal();
+        } else {
+          tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Erro ao carregar monitoramento: ${(res && res.error) || 'Publique uma Nova Versão no Google Apps Script.'}</td></tr>`;
+        }
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Falha de comunicação com o servidor. Verifique se publicou a Nova Versão no Google Apps Script.</td></tr>`;
+      }
+    }
+
+    function renderizarTabelaMonitoramento() {
+      const tbody = document.getElementById('tbodyMonitoramento');
+      const diaFiltro = document.getElementById('filtroDiaSemana').value.trim().toUpperCase();
+      const statusFiltro = document.getElementById('filtroStatus').value;
+      const buscaTxt = (document.getElementById('inputBuscaTexto').value || "").trim().toUpperCase();
+
+      const filtradas = listaEletivasMonitoramento.filter(item => {
+        const diaItemNorm = String(item.dia || "").toUpperCase();
+        const bateDia = !diaFiltro || diaItemNorm.includes(diaFiltro);
+
+        let bateStatus = true;
+        if (statusFiltro === "ATRASO_FREQ") bateStatus = item.diasEmAtraso > 0;
+        else if (statusFiltro === "EM_DIA_FREQ") bateStatus = item.diasEmAtraso === 0;
+        else if (statusFiltro === "PENDENTE_NOTA") bateStatus = (item.totalAlunos === 0 || item.notasCadastradas < item.totalAlunos);
+        else if (statusFiltro === "COMPLETA_NOTA") bateStatus = (item.totalAlunos > 0 && item.notasCadastradas === item.totalAlunos);
+
+        const bateBusca = !buscaTxt ||
+          String(item.eletiva || "").toUpperCase().includes(buscaTxt) ||
+          String(item.professor || "").toUpperCase().includes(buscaTxt);
+
+        return bateDia && bateStatus && bateBusca;
+      });
+
+      const totalElet = filtradas.length;
+      const freqEmDia = filtradas.filter(x => x.diasEmAtraso === 0).length;
+      const freqAtraso = filtradas.filter(x => x.diasEmAtraso > 0).length;
+      const notas100 = filtradas.filter(x => x.totalAlunos > 0 && x.notasCadastradas === x.totalAlunos).length;
+
+      document.getElementById('kpiTotalEletivas').innerText = totalElet;
+      document.getElementById('kpiSubSemestre').innerText = `Semestre: ${document.getElementById('selectSemestre').value || '-'}`;
+      document.getElementById('kpiFreqEmDia').innerText = freqEmDia;
+      document.getElementById('kpiFreqAtraso').innerText = freqAtraso;
+      document.getElementById('kpiNotasCompletas').innerText = `${notas100} / ${totalElet}`;
+
+      if (filtradas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">Nenhuma eletiva encontrada para os filtros selecionados.</td></tr>';
+        return;
+      }
+
+      let html = '';
+      filtradas.forEach((item, idx) => {
+        const badgeFreqStatus = item.diasEmAtraso === 0
+          ? `<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-check-circle-fill me-1"></i>Em Dia (0 atraso)</span>`
+          : `<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1"><i class="bi bi-exclamation-triangle-fill me-1"></i>${item.diasEmAtraso} dia(s) em atraso</span>`;
+
+        // Coluna de Datas que não constam frequência (Mostra o botão × APENAS para Direção e Administrador)
+        let htmlDatasPendentes = '';
+        if (item.datasPendentesLista.length === 0) {
+          htmlDatasPendentes = `<span class="text-success small fw-semibold"><i class="bi bi-check2-all me-1"></i>Todas as frequências deste dia foram realizadas!</span>`;
+        } else {
+          item.datasPendentesLista.forEach(dt => {
+            const eletEscapada = item.eletiva.replace(/'/g, "\\'");
+            const diaEscapado = item.dia.replace(/'/g, "\\'");
+            const botaoExcluirHtml = podeEditarMonitoramento
+              ? `<button type="button" class="btn-excluir-data-chip" onclick="confirmarExclusaoDataFeriado('${dt}', '${diaEscapado}', '${eletEscapada}')" title="Excluir ${dt} se foi Feriado ou Dia Não Letivo">×</button>`
+              : '';
+
+            htmlDatasPendentes += `
+              <span class="chip-data-pendente" title="Falta frequência em ${dt} (${item.dia})">
+                <i class="bi bi-calendar-event"></i>${dt}
+                ${botaoExcluirHtml}
+              </span>`;
+          });
+        }
+
+        const percNotas = item.totalAlunos > 0 ? Math.round((item.notasCadastradas / item.totalAlunos) * 100) : 0;
+        const corBarraNota = (item.totalAlunos > 0 && item.notasCadastradas === item.totalAlunos)
+          ? 'bg-success'
+          : (item.notasCadastradas > 0 ? 'bg-warning' : 'bg-danger');
+
+        const badgeNotaResumo = item.totalAlunos === 0
+          ? `<span class="badge bg-secondary">Sem alunos matriculados</span>`
+          : `<div class="fw-bold ${item.notasCadastradas === item.totalAlunos ? 'text-success' : 'text-dark'}">
+               ${item.notasCadastradas} de ${item.totalAlunos} notas cadastradas
+             </div>
+             <div class="progress-notas my-1">
+               <div class="${corBarraNota}" style="width: ${percNotas}%; height: 100%;"></div>
+             </div>
+             <div class="d-flex justify-content-between align-items-center small">
+               <span class="${item.notasPendentes > 0 ? 'text-danger fw-semibold' : 'text-success'}">
+                 ${item.notasPendentes > 0 ? `Faltam ${item.notasPendentes} em branco` : '100% Lançadas'}
+               </span>
+               <button class="btn btn-link btn-sm p-0 text-decoration-none fw-bold" onclick="abrirModalDetalhesEletiva(${idx})">
+                 Ver detalhes
+               </button>
+             </div>`;
+
+        html += `
+          <tr>
+            <td>
+              <div class="fw-bold text-dark">${item.eletiva}</div>
+              <div class="small text-muted">
+                <i class="bi bi-person-workspace me-1"></i>Prof.: <b>${item.professor}</b>
+                ${item.turma && item.turma !== '-' ? `<span class="ms-2 badge bg-light text-secondary border">${item.turma}</span>` : ''}
+              </div>
+            </td>
+            <td class="text-center">
+              <span class="badge bg-teal text-white" style="background-color:#0f766e;">${item.dia}</span>
+            </td>
+            <td class="text-center">
+              <div class="fw-bold fs-6 text-dark">${item.diasRealizados} / ${item.diasEsperados} dias</div>
+              <small class="text-muted">realizados no período</small>
+            </td>
+            <td class="text-center">${badgeFreqStatus}</td>
+            <td>${htmlDatasPendentes}</td>
+            <td class="text-center">${badgeNotaResumo}</td>
+          </tr>`;
+      });
+
+      tbody.innerHTML = html;
+      window._eletivasFiltradasAtual = filtradas;
+    }
+
+    async function confirmarExclusaoDataFeriado(dataBr, diaSemanaTxt, nomeEletiva) {
+      if (!podeEditarMonitoramento) {
+        return Swal.fire('Acesso Restrito', 'Apenas perfis de Direção e Administrador podem excluir datas do calendário.', 'warning');
+      }
+
+      const { value: formValues } = await Swal.fire({
+        title: `Excluir a data ${dataBr}?`,
+        html: `
+          <div class="text-start small">
+            <p class="mb-2">A data <b>${dataBr} (${diaSemanaTxt})</b> não cobrará mais frequência.</p>
+            <label class="form-label fw-bold">Onde aplicar esta dispensa?</label>
+            <select id="swalEscopoFeriado" class="form-select mb-3">
+              <option value="TODAS" selected>Em TODAS as eletivas de ${diaSemanaTxt} (Feriado Geral / Ponto Facultativo)</option>
+              <option value="${nomeEletiva}">Apenas na eletiva "${nomeEletiva}"</option>
+            </select>
+            <label class="form-label fw-bold">Motivo (Feriado / Evento):</label>
+            <input type="text" id="swalMotivoFeriado" class="form-control" value="Feriado / Dia Não Letivo">
+          </div>`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#0f766e',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Sim, Excluir Data',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+          return {
+            escopo: document.getElementById('swalEscopoFeriado').value,
+            motivo: document.getElementById('swalMotivoFeriado').value || 'Feriado'
+          };
+        }
+      });
+
+      if (!formValues) return;
+
+      Swal.fire({ title: 'Excluindo data do calendário...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'dispensarDataEletiva',
+            dados: {
+              data: dataBr,
+              escopo: formValues.escopo,
+              motivo: formValues.motivo
+            }
+          })
+        }).then(r => r.json());
+
+        if (res && res.success) {
+          await carregarDadosMonitoramento(false);
+          Swal.fire({ title: 'Data Excluída!', text: res.msg, icon: 'success', timer: 1700, showConfirmButton: false });
+        } else {
+          Swal.fire('Erro', (res && res.error) || 'Não foi possível excluir a data.', 'error');
+        }
+      } catch (e) {
+        Swal.fire('Erro', 'Falha de conexão com o servidor.', 'error');
+      }
+    }
+
+    function abrirModalFeriados() {
+      if (!podeEditarMonitoramento) return;
+      renderizarTabelaFeriadosModal();
+      modalFeriadosInstancia.show();
+    }
+
+    function renderizarTabelaFeriadosModal() {
+      const tbody = document.getElementById('tbodyFeriadosModal');
+      if (!listaFeriadosGlobal || listaFeriadosGlobal.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Nenhuma data foi excluída/dispensada até o momento.</td></tr>';
+        return;
+      }
+
+      let html = '';
+      listaFeriadosGlobal.forEach(f => {
+        html += `
+          <tr>
+            <td class="fw-bold text-danger">${f.data}</td>
+            <td>${f.diaSemana || '-'}</td>
+            <td><span class="badge bg-light text-dark border">${f.escopo === 'TODAS' ? 'Todas as Eletivas (Feriado Geral)' : f.escopo}</span></td>
+            <td>${f.motivo}</td>
+            <td class="text-end">
+              <button class="btn btn-outline-success btn-sm py-0" onclick="restaurarDataFeriado(${f.linha}, '${f.data}')">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Restaurar
+              </button>
+            </td>
+          </tr>`;
+      });
+      tbody.innerHTML = html;
+    }
+
+    async function adicionarFeriadoManualModal() {
+      if (!podeEditarMonitoramento) return;
+      const valIso = document.getElementById('feriadoDataInput').value;
+      const motivo = document.getElementById('feriadoMotivoInput').value.trim();
+      if (!valIso) return;
+
+      const p = valIso.split('-');
+      const dataBr = `${p[2]}/${p[1]}/${p[0]}`;
+
+      Swal.fire({ title: 'Salvando feriado...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'dispensarDataEletiva',
+          dados: { data: dataBr, escopo: 'TODAS', motivo: motivo }
+        })
+      }).then(r => r.json());
+
+      Swal.close();
+      if (res && res.success) {
+        document.getElementById('feriadoDataInput').value = "";
+        document.getElementById('feriadoMotivoInput').value = "";
+        await carregarDadosMonitoramento(false);
+      } else {
+        Swal.fire('Atenção', (res && res.error) || 'Não foi possível salvar.', 'warning');
+      }
+    }
+
+    async function restaurarDataFeriado(linha, dataBr) {
+      if (!podeEditarMonitoramento) return;
+      Swal.fire({ title: 'Restaurando data...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'restaurarDataEletiva',
+          dados: { linha: linha, data: dataBr }
+        })
+      }).then(r => r.json());
+      Swal.close();
+      if (res && res.success) {
+        await carregarDadosMonitoramento(false);
+      } else {
+        Swal.fire('Atenção', (res && res.error) || 'Não foi possível restaurar.', 'warning');
+      }
+    }
+
+    function abrirModalDetalhesEletiva(idx) {
+      const item = (window._eletivasFiltradasAtual || [])[idx];
+      if (!item) return;
+
+      document.getElementById('tituloModalDetalhes').innerHTML =
+        `<i class="bi bi-journal-bookmark-fill text-primary me-2"></i>${item.eletiva} (${item.semestre})`;
+
+      const htmlRealizadas = item.datasRealizadasLista.length > 0
+        ? item.datasRealizadasLista.map(d => `<span class="badge bg-success-subtle text-success border border-success-subtle me-1 mb-1">${d}</span>`).join('')
+        : '<span class="text-muted small">Nenhuma frequência registrada ainda.</span>';
+
+      const htmlSemNota = item.alunosSemNotaLista.length > 0
+        ? `<ul class="list-group list-group-flush small border rounded" style="max-height: 220px; overflow-y: auto;">` +
+          item.alunosSemNotaLista.map(al => `<li class="list-group-item py-1"><i class="bi bi-person-exclamation text-danger me-2"></i>${al} <span class="badge bg-warning-subtle text-dark float-end">Nota em branco</span></li>`).join('') +
+          `</ul>`
+        : `<div class="alert alert-success small mb-0"><i class="bi bi-check-circle-fill me-1"></i>Todos os ${item.totalAlunos} alunos matriculados já possuem nota cadastrada!</div>`;
+
+      document.getElementById('corpoModalDetalhes').innerHTML = `
+        <div class="mb-3">
+          <div class="small text-muted mb-1"><b>Professor(a):</b> ${item.professor} | <b>Dia da Eletiva:</b> ${item.dia}</div>
+        </div>
+        <div class="mb-3">
+          <h6 class="fw-bold small text-uppercase text-secondary">Datas com Frequência Realizada (${item.diasRealizados}):</h6>
+          <div>${htmlRealizadas}</div>
+        </div>
+        <div>
+          <h6 class="fw-bold small text-uppercase text-secondary">
+            Situação das Notas (${item.notasCadastradas} de ${item.totalAlunos} notas cadastradas):
+          </h6>
+          ${htmlSemNota}
+        </div>`;
+
+      modalDetalhesInstancia.show();
+    }
+
+    function exportarPdfMonitoramento() {
+      const lista = window._eletivasFiltradasAtual || [];
+      if (lista.length === 0) {
+        return Swal.fire('Atenção', 'Não há dados na tabela para exportar.', 'warning');
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('landscape', 'mm', 'a4');
+      const semestre = document.getElementById('selectSemestre').value || '-';
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(15, 118, 110);
+      doc.text("MONITORAMENTO DE FREQUÊNCIA E NOTAS DAS ELETIVAS — EEMTI AGOSTINHO NERES PORTELA", 14, 15);
+
+      doc.setFontSize(9.5);
+      doc.setTextColor(50, 50, 50);
+      doc.text(`Semestre: ${semestre}   |   Período Analisado: ${document.getElementById('inputDataInicio').value} até ${document.getElementById('inputDataFim').value}   |   Emitido em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 21);
+
+      const rowsPdf = lista.map(item => [
+        item.eletiva,
+        item.professor,
+        item.dia,
+        `${item.diasRealizados} / ${item.diasEsperados} (${item.diasEmAtraso} atraso)`,
+        item.datasPendentesLista.length > 0 ? item.datasPendentesLista.join(', ') : 'EM DIA',
+        `${item.notasCadastradas} / ${item.totalAlunos} notas`
+      ]);
+
+      doc.autoTable({
+        startY: 26,
+        head: [['Eletiva', 'Professor(a)', 'Dia', 'Frequências', 'Datas Sem Frequência', 'Notas Cadastradas']],
+        body: rowsPdf,
+        styles: { fontSize: 8, cellPadding: 2.5 },
+        headStyles: { fillColor: [15, 118, 110], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 250, 252] }
+      });
+
+      doc.save(`Monitoramento_Eletivas_${semestre}.pdf`);
+    }
+  </script>
+</body>
+</html>
