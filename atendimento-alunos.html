@@ -46,7 +46,7 @@
       <span class="navbar-brand">
         <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
         <div>
-          Atendimento aos Alunos e Suspensões
+          Atendimento aos Alunos & Suspensões
           <div class="sub-text">EEMTI Agostinho Neres Portela</div>
         </div>
       </span>
@@ -154,7 +154,7 @@
           <div class="card-header-custom d-flex justify-content-between align-items-center flex-wrap gap-2 text-danger">
             <div>
               <i class="bi bi-shield-exclamation me-2"></i>Alunos Necessitados de Suspensão
-              <div class="small fw-normal text-muted mt-1">Gerencie as suspensões, ajuste a data inicial de cumprimento e emite o Termo em PDF.</div>
+              <div class="small fw-normal text-muted mt-1">Gerencie as suspensões, ajuste a data inicial de cumprimento e emita o Termo em PDF informando os dias e a data de retorno.</div>
             </div>
             <div class="d-flex flex-wrap gap-2 align-items-center">
               <button class="btn btn-danger btn-sm fw-bold" onclick="abrirModalSuspensaoManual()">
@@ -196,7 +196,7 @@
                 </tr>
               </thead>
               <tbody id="tbodySuspensao">
-                <tr><td colspan="7" class="text-center py-4 text-muted">Carregando lista de alunos...</td></tr>
+                <tr><td colspan="6" class="text-center py-4 text-muted">Carregando lista de alunos...</td></tr>
               </tbody>
             </table>
           </div>
@@ -462,7 +462,7 @@
 
     async function carregarAlunosSuspensao() {
       const tbody = document.getElementById('tbodySuspensao');
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Analisando ocorrências e critérios de suspensão...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Analisando ocorrências e critérios de suspensão...</td></tr>';
 
       try {
         const res = await fetch(API_URL, {
@@ -478,10 +478,10 @@
           popularSelectsDeSeries();
           filtrarTabelaSuspensaoPorSerie();
         } else {
-          tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-4">Erro ao carregar painel: ${(res && res.error) || 'Verifique a implantação do Apps Script.'}</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Erro ao carregar painel: ${(res && res.error) || 'Verifique a implantação do Apps Script.'}</td></tr>`;
         }
       } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">Falha de conexão com o servidor.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">Falha de conexão com o servidor.</td></tr>';
       }
     }
 
@@ -506,15 +506,12 @@
       document.getElementById('badgeQtdSuspensao').innerText = filtrados.length;
 
       if (filtrados.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-success fw-semibold"><i class="bi bi-check-circle-fill me-1"></i>Nenhum aluno nesta turma encontra-se pendente de suspensão.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-success fw-semibold"><i class="bi bi-check-circle-fill me-1"></i>Nenhum aluno nesta turma encontra-se pendente de suspensão.</td></tr>';
         return;
       }
 
       let html = '';
       filtrados.forEach((item, idx) => {
-        const alunoEscapado = item.aluno.replace(/'/g, "\\'");
-        const serieEscapada = (item.serie || "Turma").replace(/'/g, "\\'");
-        const motivoEscapado = item.motivo.replace(/'/g, "\\'");
         const badgeOrigem = item.tipoOrigem === "MANUAL" ? `<span class="badge bg-dark">Manual</span>` : `<span class="badge bg-danger">Automática</span>`;
         const pdtNome = item.pdt || mapaPdtGlobal[String(item.serie || "").trim().toUpperCase()] || "Não atribuído";
 
@@ -534,10 +531,10 @@
               ${item.detalhesOcorrencias ? `<div class="small text-muted text-truncate" style="max-width: 250px;" title="${item.detalhesOcorrencias}">${item.detalhesOcorrencias}</div>` : ''}
             </td>
             <td class="text-end text-nowrap">
-              <button class="btn btn-sm btn-outline-danger fw-bold me-1" onclick="gerarTermoSuspensaoPorIndice(${idx})" title="Baixar Termo de Suspensão com a data editada">
+              <button class="btn btn-sm btn-outline-danger fw-bold me-1" onclick="gerarTermoSuspensaoPorIndice(${idx})" title="Informar quantidade de dias e gerar Termo de Suspensão em PDF">
                 <i class="bi bi-file-earmark-pdf-fill me-1"></i>Termo PDF
               </button>
-              <button class="btn btn-sm btn-success fw-bold" onclick="irParaAtendimentoDoAlunoSuspenso(${idx})" title="Registrar comparecimento">
+              <button class="btn btn-sm btn-success fw-bold" onclick="irParaAtendimentoDoAlunoSuspenso(${idx})" title="Registrar comparecimento do responsável">
                 <i class="bi bi-person-check-fill me-1"></i>Atender
               </button>
             </td>
@@ -557,15 +554,64 @@
       return limpo;
     }
 
+    // Calcula a data de retorno pulando finais de semana (Sábado e Domingo)
+    function calcularDataRetornoLetivoIso(dataInicioIso, diasSuspensao) {
+      const partes = String(dataInicioIso).split('-');
+      if (partes.length !== 3) return dataInicioIso;
+
+      let dt = new Date(parseInt(partes[0], 10), parseInt(partes[1], 10) - 1, parseInt(partes[2], 10), 12, 0, 0);
+      let qtdDias = Math.max(1, parseInt(diasSuspensao, 10) || 1);
+
+      // O 1º dia de suspensão começa na data de início (se cair no fim de semana, avança para segunda)
+      while (dt.getDay() === 0 || dt.getDay() === 6) {
+        dt.setDate(dt.getDate() + 1);
+      }
+
+      // Avança os dias restantes de cumprimento da suspensão
+      let cumpridos = 1;
+      while (cumpridos < qtdDias) {
+        dt.setDate(dt.getDate() + 1);
+        if (dt.getDay() !== 0 && dt.getDay() !== 6) {
+          cumpridos++;
+        }
+      }
+
+      // O retorno ocorre no próximo dia útil imediatamente após o último dia de suspensão
+      dt.setDate(dt.getDate() + 1);
+      while (dt.getDay() === 0 || dt.getDay() === 6) {
+        dt.setDate(dt.getDate() + 1);
+      }
+
+      const ano = dt.getFullYear();
+      const mes = String(dt.getMonth() + 1).padStart(2, '0');
+      const dia = String(dt.getDate()).padStart(2, '0');
+      return `${ano}-${mes}-${dia}`;
+    }
+
+    function formatarIsoParaDataBr(isoStr) {
+      if (!isoStr) return "";
+      const p = String(isoStr).split('-');
+      if (p.length === 3) return `${p[2]}/${p[1]}/${p[0]}`;
+      return isoStr;
+    }
+
     function irParaAtendimentoDoAlunoSuspenso(idxFiltrado) {
       const item = (window._listaSuspensaoFiltradaAtual || [])[idxFiltrado];
       if (!item) return;
+
+      const inputDataEl = document.getElementById(`dataSusp_${idxFiltrado}`);
+      let dataSuspUsada = item.dataSuspensao;
+      if (inputDataEl && inputDataEl.value) {
+        dataSuspUsada = formatarIsoParaDataBr(inputDataEl.value);
+      }
 
       document.getElementById('atendFiltroSerie').value = item.serie || "";
       filtrarDatalistPorSerieForm();
       document.getElementById('atendAluno').value = item.aluno;
       preencherDataHoraAtualInput();
       verificarSeAlunoEstaSuspensoForm();
+      document.getElementById('lblDataSuspensaoForm').innerText = dataSuspUsada;
+      document.getElementById('atendDataSuspensaoRef').value = dataSuspUsada;
 
       const tabFormBtn = document.getElementById('form-tab');
       bootstrap.Tab.getOrCreateInstance(tabFormBtn).show();
@@ -598,8 +644,7 @@
       const dataIso = document.getElementById('manData').value;
       const motivo = document.getElementById('manMotivo').value.trim();
 
-      const p = dataIso.split('-');
-      const dataBr = p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : dataIso;
+      const dataBr = formatarIsoParaDataBr(dataIso);
 
       const btn = document.getElementById('btnSalvarManual');
       btn.disabled = true;
@@ -629,17 +674,77 @@
       }
     }
 
-    // Gera o Termo de Suspensão em PDF utilizando a data que o professor escolheu na caixinha
-    function gerarTermoSuspensaoPorIndice(idxFiltrado) {
+    // Abre caixa para digitar quantos dias o aluno será suspenso, calcula o retorno e gera o Termo em PDF
+    async function gerarTermoSuspensaoPorIndice(idxFiltrado) {
       const item = (window._listaSuspensaoFiltradaAtual || [])[idxFiltrado];
       if (!item) return;
 
       const inputDataEl = document.getElementById(`dataSusp_${idxFiltrado}`);
-      let dataTermoBr = item.dataSuspensao;
-      if (inputDataEl && inputDataEl.value) {
-        const p = inputDataEl.value.split('-');
-        if (p.length === 3) dataTermoBr = `${p[2]}/${p[1]}/${p[0]}`;
-      }
+      const dataInicioIso = (inputDataEl && inputDataEl.value)
+        ? inputDataEl.value
+        : converterDataParaInputHtml(item.dataSuspensao);
+
+      const dataInicioBr = formatarIsoParaDataBr(dataInicioIso);
+      const dataRetornoSugeridaIso = calcularDataRetornoLetivoIso(dataInicioIso, 2);
+
+      const { value: dadosTermo } = await Swal.fire({
+        title: 'Configurar Termo de Suspensão',
+        html: `
+          <div class="text-start small">
+            <div class="p-2 mb-3 rounded bg-light border">
+              <div><b>Aluno(a):</b> ${item.aluno}</div>
+              <div><b>Turma:</b> ${item.serie} | <b>Início da Suspensão:</b> <span class="text-danger fw-bold">${dataInicioBr}</span></div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-bold text-dark">Quantos dias letivos o(a) aluno(a) ficará suspenso(a)?</label>
+              <input type="number" id="swalDiasSuspensao" class="form-control fw-bold text-center fs-5" min="1" max="15" value="2">
+            </div>
+            <div class="mb-2">
+              <label class="form-label fw-bold text-dark">Data Prevista de Retorno às Aulas:</label>
+              <input type="date" id="swalDataRetorno" class="form-control fw-bold text-success" value="${dataRetornoSugeridaIso}">
+              <small class="text-muted">Calculada automaticamente em dias úteis (você pode ajustar se houver feriado).</small>
+            </div>
+            <div class="alert alert-info py-2 px-3 mt-3 mb-0 small">
+              <i class="bi bi-info-circle-fill me-1"></i>O PDF informará a data de início, os dias de suspensão, a data de retorno e destacará que <b>o responsável pode comparecer à escola a qualquer momento</b> (inclusive durante o prazo da suspensão).
+            </div>
+          </div>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: '<i class="bi bi-file-earmark-pdf-fill me-1"></i>Gerar Termo PDF',
+        cancelButtonText: 'Cancelar',
+        didOpen: () => {
+          const inpDias = document.getElementById('swalDiasSuspensao');
+          const inpRet = document.getElementById('swalDataRetorno');
+          inpDias.addEventListener('input', () => {
+            const d = parseInt(inpDias.value, 10) || 1;
+            inpRet.value = calcularDataRetornoLetivoIso(dataInicioIso, d);
+          });
+        },
+        preConfirm: () => {
+          const dias = parseInt(document.getElementById('swalDiasSuspensao').value, 10);
+          const retIso = document.getElementById('swalDataRetorno').value;
+          if (!dias || dias < 1) {
+            Swal.showValidationMessage('Informe uma quantidade válida de dias (mínimo 1 dia).');
+            return false;
+          }
+          if (!retIso) {
+            Swal.showValidationMessage('Informe a data de retorno do aluno.');
+            return false;
+          }
+          return {
+            dias: dias,
+            dataRetornoBr: formatarIsoParaDataBr(retIso)
+          };
+        }
+      });
+
+      if (!dadosTermo) return;
+
+      const qtdDias = dadosTermo.dias;
+      const textoDias = qtdDias === 1 ? "01 (um) dia letivo" : `${String(qtdDias).padStart(2, '0')} (${qtdDias}) dias letivos`;
+      const dataRetornoBr = dadosTermo.dataRetornoBr;
 
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('portrait');
@@ -656,7 +761,7 @@
       } catch (e) {}
 
       doc.setFontSize(11); doc.setFont("helvetica", "bold"); doc.setTextColor(30, 41, 59);
-      doc.text("ESCOLA DE ENSINO MÉDIO DE TEMPO INTEGRAL", 40, 17);
+      doc.text("ESCOLA DE ENSINO MÉDIO EM TEMPO INTEGRAL", 40, 17);
       doc.setFontSize(14); doc.setTextColor(15, 118, 110);
       doc.text("E.E.M.T.I AGOSTINHO NERES PORTELA", 40, 24);
       doc.setFontSize(9.5); doc.setFont("helvetica", "normal"); doc.setTextColor(100, 116, 139);
@@ -666,34 +771,43 @@
       doc.line(14, 36, 196, 36);
 
       doc.setFontSize(13); doc.setFont("helvetica", "bold"); doc.setTextColor(30, 41, 59);
-      doc.text("TERMO DE SUSPENSÃO E CONVOCAÇÃO DO RESPONSÁVEL", 105, 45, { align: 'center' });
+      doc.text("TERMO DE SUSPENSÃO DISCIPLINAR E CONVOCAÇÃO FAMILIAR", 105, 45, { align: 'center' });
 
       const pdtNome = item.pdt || mapaPdtGlobal[String(item.serie || "").trim().toUpperCase()] || "Não atribuído";
 
-      doc.setFontSize(10); doc.setFont("helvetica", "normal");
+      doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(30, 41, 59);
       doc.text(`Aluno(a): ${item.aluno}`, 14, 55);
       doc.text(`Série / Turma: ${item.serie}   |   Professor(a) PDT: ${pdtNome}`, 14, 62);
-      doc.text(`Início da Suspensão: ${dataTermoBr}`, 14, 69);
 
+      // Quadro de Período da Suspensão e Retorno
+      doc.setDrawColor(15, 118, 110); doc.setFillColor(240, 253, 244);
+      doc.roundedRect(14, 66, 182, 16, 2, 2, 'FD');
+      doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(15, 118, 110);
+      doc.text(`• PERÍODO DE SUSPENSÃO: ${textoDias}   |   INÍCIO: ${dataInicioBr}   |   RETORNO PREVISTO: ${dataRetornoBr}`, 18, 73);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(30, 41, 59);
+      doc.text(`* O(A) responsável legal poderá comparecer à escola a qualquer momento, inclusive durante o período de suspensão.`, 18, 79);
+
+      // Quadro de Motivo / Critério
       doc.setDrawColor(200, 200, 200); doc.setFillColor(248, 250, 252);
-      doc.roundedRect(14, 75, 182, 36, 2, 2, 'FD');
-      doc.setFont("helvetica", "bold"); doc.setTextColor(180, 40, 40);
-      doc.text(`MOTIVO / CRITÉRIO (${item.tipoOrigem}):`, 18, 83);
-      doc.setFont("helvetica", "normal"); doc.setTextColor(30, 41, 59);
-      doc.text(String(item.motivo || ""), 18, 90, { maxWidth: 174 });
+      doc.roundedRect(14, 86, 182, 36, 2, 2, 'FD');
+      doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(180, 40, 40);
+      doc.text(`MOTIVO / CRITÉRIO DA SUSPENSÃO (${item.tipoOrigem}):`, 18, 93);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(30, 41, 59);
+      doc.text(String(item.motivo || ""), 18, 100, { maxWidth: 174 });
       if (item.detalhesOcorrencias) {
-        doc.setFontSize(8.5);
-        doc.text("Resumo: " + String(item.detalhesOcorrencias), 18, 98, { maxWidth: 174 });
+        doc.setFontSize(8.2);
+        doc.text("Histórico Recente: " + String(item.detalhesOcorrencias), 18, 107, { maxWidth: 174 });
       }
 
-      doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(30, 41, 59);
       let textoTermo =
-        `Comunicamos ao(à) Senhor(a) Responsável que o(a) estudante acima identificado(a) encontra-se suspenso(a) das atividades escolares presenciais a partir de ${dataTermoBr}, por ter atingido o limite regimental de ocorrências disciplinares previstas no RAC.\n\n` +
-        "O retorno do(a) estudante às aulas fica condicionado ao comparecimento presencial do responsável legal à escola para realização de atendimento pedagógico, assinatura de termo de compromisso e alinhamento de conduta junto à Gestão Escolar e ao Professor Diretor de Turma (PDT).";
+        `Comunicamos ao(à) Senhor(a) Responsável que o(a) estudante acima identificado(a) cumprirá suspensão das atividades escolares presenciais pelo período de ${textoDias}, com início em ${dataInicioBr} e retorno às aulas previsto para o dia ${dataRetornoBr}, em virtude de reincidência de infrações às normas de convivência previstas no RAC (Regimento de Acompanhamento de Convivência).\n\n` +
+        `Ressaltamos que o(a) responsável legal pode comparecer à instituição de ensino a qualquer momento — mesmo durante o prazo em que o(a) aluno(a) estiver cumprindo a suspensão — para realização do atendimento pedagógico, assinatura do termo de compromisso e alinhamento de conduta junto à Gestão Escolar e ao Professor Diretor de Turma (PDT).\n\n` +
+        `A presença e o acompanhamento da família são indispensáveis para a regularização da situação disciplinar e o retorno produtivo do(a) estudante às atividades escolares.`;
 
-      doc.text(textoTermo, 14, 122, { maxWidth: 182, lineHeightFactor: 1.5 });
+      doc.text(textoTermo, 14, 132, { maxWidth: 182, lineHeightFactor: 1.5 });
 
-      let finalY = 195;
+      let finalY = 212;
       doc.setLineWidth(0.3); doc.setDrawColor(100, 116, 139);
       doc.line(20, finalY, 90, finalY);
       doc.setFontSize(9); doc.setFont("helvetica", "bold");
@@ -701,6 +815,9 @@
 
       doc.line(120, finalY, 190, finalY);
       doc.text("Assinatura do Responsável Legal", 155, finalY + 5, { align: 'center' });
+
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(120, 120, 120);
+      doc.text(`Documento emitido em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, 105, 232, { align: 'center' });
 
       doc.save(`Termo_Suspensao_${item.aluno.replace(/\s+/g, '_')}.pdf`);
     }
