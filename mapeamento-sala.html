@@ -68,7 +68,7 @@
         <img src="LOGO-removebg-preview.png" class="logo-escola" alt="Brasão" onerror="this.src='https://cdn-icons-png.flaticon.com/512/2941/2941658.png'">
         <div>
           Mapeamento de Sala de Aula
-          <div class="sub-text">EEMTI Agostinho Neres Portela</div>
+          <div class="sub-text" id="subtituloNomeEscola">EEMTI Agostinho Neres Portela</div>
         </div>
       </span>
       <div class="d-flex align-items-center gap-3">
@@ -217,7 +217,7 @@
           <div class="card-header-custom">
             <div>
               <h5 class="fw-bold m-0 text-dark">
-                <i class="bi bi-journal-check text-success me-2"></i>Mapeamentos de Sala Registrados (Disponível Offline)
+                <i class="bi bi-journal-check text-success me-2"></i>Mapeamentos de Sala Registrados 
               </h5>
               <small class="text-muted">Todos os professores podem consultar o mapa da turma na tela ou baixar o PDF com fotos 3x4 mesmo sem conexão com a internet.</small>
             </div>
@@ -297,8 +297,14 @@
 
     document.getElementById('anoAtual').innerText = new Date().getFullYear();
 
+    // IMPORTANTE: Certifique-se de que cada escola aponta para a sua própria API_URL
     const API_URL = "https://script.google.com/macros/s/AKfycbyNedpZQsNt5lzHtrCSRfC4bWFEuCHHkZ4ygbm-DDm0NUBVARwS5GNFMu2zB3WutFE/exec";
     const AVATAR_PADRAO = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+
+    // Prefixo único por repositório/escola + hash da API_URL para NUNCA misturar dados entre duas escolas no mesmo navegador!
+    const ESCOLA_CACHE_PREFIX = "mapa_" +
+      (window.location.pathname.split('/')[1] || "escola").toLowerCase().replace(/[^a-z0-9]/g, '') + "_" +
+      API_URL.slice(-12).replace(/[^a-zA-Z0-9]/g, '') + "_";
 
     let nomeUsuarioLogado = "";
     let perfilUsuarioLogado = "";
@@ -306,6 +312,7 @@
     let turmasDoPdtLogado = [];
     var todosAlunosEscola = [];
     var alunosDaSerieAtual = [];
+    let seriesOficiaisDaEscola = new Set(); // Guarda apenas as séries reais desta escola
     let mapaPdtPorSerie = {};
     let posicoesOcupadas = {};
     let cacheMapeamentosGlobal = {};
@@ -316,7 +323,6 @@
       return (f.startsWith('data:image') || f.includes('http')) && !f.includes('149071.png');
     }
 
-    // Localiza o registro do aluno com foto em qualquer lista disponível (Turma, Escola ou Caches Locais)
     function buscarObjetoAlunoComFoto(nomeAluno, serieAlvo) {
       const nBusca = String(nomeAluno || "").trim().toUpperCase();
       const sBusca = String(serieAlvo || "").trim().toUpperCase();
@@ -326,13 +332,6 @@
       if (Array.isArray(alunosDaSerieAtual)) cands = cands.concat(alunosDaSerieAtual);
       if (Array.isArray(todosAlunosEscola)) cands = cands.concat(todosAlunosEscola);
 
-      try {
-        const c1 = JSON.parse(localStorage.getItem('cache_alunos_mapa_v2') || '[]');
-        const c2 = JSON.parse(localStorage.getItem('cache_alunos_rac') || '[]');
-        cands = cands.concat(c1, c2);
-      } catch (e) {}
-
-      // 1º Prioridade: Mesmo Nome + Mesma Série + Com Foto Válida
       let achou = cands.find(a =>
         String(a.nome || "").trim().toUpperCase() === nBusca &&
         (!sBusca || String(a.serie || "").trim().toUpperCase() === sBusca) &&
@@ -340,15 +339,23 @@
       );
       if (achou) return achou;
 
-      // 2º Prioridade: Mesmo Nome em qualquer série + Com Foto Válida
       achou = cands.find(a =>
         String(a.nome || "").trim().toUpperCase() === nBusca &&
         temFotoValida(a.foto)
       );
       if (achou) return achou;
 
-      // 3º Fallback: Mesmo Nome mesmo sem foto
       return cands.find(a => String(a.nome || "").trim().toUpperCase() === nBusca) || null;
+    }
+
+    // Verifica se uma série pertence realmente a esta escola
+    function seriePertenceAEstaEscola(serieStr) {
+      const s = String(serieStr || "").trim().toUpperCase();
+      if (!s || s === "TRANSFERIDO") return false;
+      if (seriesOficiaisDaEscola.size > 0) {
+        return seriesOficiaisDaEscola.has(s);
+      }
+      return Boolean(mapaPdtPorSerie[s]);
     }
 
     function atualizarStatusRedeUI() {
@@ -391,7 +398,7 @@
       carregarCachesLocais();
 
       Swal.fire({
-        title: 'Sincronizando Mapeamentos e Fotos 3x4...',
+        title: 'Sincronizando Mapeamentos desta Escola...',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
       });
@@ -405,25 +412,46 @@
             fetch(API_URL + "?v=" + new Date().getTime(), { method: 'POST', body: JSON.stringify({ action: 'listarConfig', tipo: 'SERIE' }) }).then(r => r.json()).catch(() => null)
           ]);
 
-          if (resAlunos && Array.isArray(resAlunos.alunos)) {
-            todosAlunosEscola = resAlunos.alunos;
-            localStorage.setItem('cache_alunos_mapa_v2', JSON.stringify(todosAlunosEscola));
-            localStorage.setItem('cache_alunos_rac', JSON.stringify(todosAlunosEscola));
+          seriesOficiaisDaEscola = new Set();
+
+          // 1. Lê as séries cadastradas na aba SERIE desta escola
+          if (resSeries && Array.isArray(resSeries.lista)) {
+            resSeries.lista.forEach(item => {
+              let c2 = String(item.col2 || "").trim().toUpperCase();
+              let c1 = String(item.col1 || "").trim().toUpperCase();
+              let nomeSerie = (c2 && !/^\d+$/.test(c2)) ? c2 : c1;
+              if (nomeSerie && nomeSerie !== "SÉRIE" && nomeSerie !== "SERIE" && nomeSerie !== "TURMA" && nomeSerie !== "ID") {
+                seriesOficiaisDaEscola.add(nomeSerie);
+              }
+            });
           }
 
+          // 2. Lê os alunos ativos desta escola
+          if (resAlunos && Array.isArray(resAlunos.alunos)) {
+            todosAlunosEscola = resAlunos.alunos;
+            todosAlunosEscola.forEach(al => {
+              let sAl = String(al.serie || "").trim().toUpperCase();
+              if (sAl && sAl !== "TRANSFERIDO") seriesOficiaisDaEscola.add(sAl);
+            });
+            localStorage.setItem(ESCOLA_CACHE_PREFIX + 'alunos_v3', JSON.stringify(todosAlunosEscola));
+          }
+
+          // 3. Lê o PDT apenas das séries que pertencem a esta escola
           if (resPdt && Array.isArray(resPdt.lista)) {
             mapaPdtPorSerie = {};
             resPdt.lista.forEach(item => {
               if (item.serie) {
-                mapaPdtPorSerie[String(item.serie).trim().toUpperCase()] = String(item.professor || "Não atribuído").trim().toUpperCase();
+                const sPdt = String(item.serie).trim().toUpperCase();
+                if (seriesOficiaisDaEscola.size === 0 || seriesOficiaisDaEscola.has(sPdt)) {
+                  mapaPdtPorSerie[sPdt] = String(item.professor || "Não atribuído").trim().toUpperCase();
+                  seriesOficiaisDaEscola.add(sPdt);
+                }
               }
             });
-            localStorage.setItem('cache_pdt_mapa_v2', JSON.stringify(mapaPdtPorSerie));
+            localStorage.setItem(ESCOLA_CACHE_PREFIX + 'pdt_v3', JSON.stringify(mapaPdtPorSerie));
           }
 
-          if (resSeries && Array.isArray(resSeries.lista)) {
-            localStorage.setItem('cache_series_mapa_v2', JSON.stringify(resSeries.lista));
-          }
+          localStorage.setItem(ESCOLA_CACHE_PREFIX + 'series_v3', JSON.stringify(Array.from(seriesOficiaisDaEscola)));
 
           await sincronizarTodosMapeamentosDoServidor(false);
         } catch (e) {}
@@ -436,30 +464,40 @@
 
     function carregarCachesLocais() {
       try {
-        const cAlunos = localStorage.getItem('cache_alunos_mapa_v2') || localStorage.getItem('cache_alunos_rac');
+        // Limpa definitivamente os caches antigos sem prefixo que misturavam as duas escolas!
+        localStorage.removeItem('cache_todos_mapeamentos_offline');
+        localStorage.removeItem('cache_pdt_mapa_v2');
+        localStorage.removeItem('cache_alunos_mapa_v2');
+        localStorage.removeItem('cache_series_mapa_v2');
+
+        const cSeries = localStorage.getItem(ESCOLA_CACHE_PREFIX + 'series_v3');
+        if (cSeries) {
+          seriesOficiaisDaEscola = new Set(JSON.parse(cSeries));
+        }
+        const cAlunos = localStorage.getItem(ESCOLA_CACHE_PREFIX + 'alunos_v3');
         if (cAlunos) todosAlunosEscola = JSON.parse(cAlunos);
-        const cPdt = localStorage.getItem('cache_pdt_mapa_v2');
+        const cPdt = localStorage.getItem(ESCOLA_CACHE_PREFIX + 'pdt_v3');
         if (cPdt) mapaPdtPorSerie = JSON.parse(cPdt);
-        const cMapas = localStorage.getItem('cache_todos_mapeamentos_offline');
+        const cMapas = localStorage.getItem(ESCOLA_CACHE_PREFIX + 'mapas_v3');
         if (cMapas) cacheMapeamentosGlobal = JSON.parse(cMapas);
       } catch (e) {}
     }
 
     function salvarCacheGlobalMapeamentos() {
       try {
-        localStorage.setItem('cache_todos_mapeamentos_offline', JSON.stringify(cacheMapeamentosGlobal));
+        localStorage.setItem(ESCOLA_CACHE_PREFIX + 'mapas_v3', JSON.stringify(cacheMapeamentosGlobal));
       } catch (e) {}
     }
 
     async function sincronizarTodosMapeamentosDoServidor(exibirFeedback) {
       if (!navigator.onLine) {
-        if (exibirFeedback) Swal.fire('Modo Offline', 'Exibindo os mapeamentos salvos no aparelho.', 'info');
+        if (exibirFeedback) Swal.fire('Modo Offline', 'Exibindo os mapeamentos salvos desta escola no aparelho.', 'info');
         renderizarTabelaMapeamentosSalvos();
         return;
       }
 
       if (exibirFeedback) {
-        Swal.fire({ title: 'Atualizando lista...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        Swal.fire({ title: 'Atualizando lista desta escola...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
       }
 
       try {
@@ -469,9 +507,11 @@
         }).then(r => r.json()).catch(() => null);
 
         if (resLista && resLista.success && Array.isArray(resLista.lista)) {
+          // ZERA o objeto antes de preencher para nunca acumular turmas de outra escola!
+          cacheMapeamentosGlobal = {};
           resLista.lista.forEach(item => {
             const s = String(item.serie || "").trim().toUpperCase();
-            if (!s) return;
+            if (!s || !seriePertenceAEstaEscola(s)) return;
             cacheMapeamentosGlobal[s] = {
               serie: s,
               pdt: item.pdt || mapaPdtPorSerie[s] || "Não atribuído",
@@ -482,8 +522,8 @@
               atualizadoPor: item.atualizadoPor || "-"
             };
           });
+          salvarCacheGlobalMapeamentos();
         }
-        salvarCacheGlobalMapeamentos();
       } catch (e) {}
 
       if (exibirFeedback) Swal.close();
@@ -501,13 +541,13 @@
     }
 
     function configurarPermissoesPdtETurmas() {
-      let todasSeries = new Set(Object.keys(mapaPdtPorSerie));
-      todosAlunosEscola.forEach(a => {
-        let s = String(a.serie || "").trim().toUpperCase();
-        if (s && s !== "TRANSFERIDO") todasSeries.add(s);
+      let todasSeries = new Set();
+      seriesOficiaisDaEscola.forEach(s => todasSeries.add(s));
+      Object.keys(mapaPdtPorSerie).forEach(s => {
+        if (seriePertenceAEstaEscola(s)) todasSeries.add(s);
       });
 
-      const listaSeriesOrdenada = Array.from(todasSeries).sort();
+      const listaSeriesOrdenada = Array.from(todasSeries).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
 
       turmasDoPdtLogado = listaSeriesOrdenada.filter(serie => {
         const pdtDaSerie = mapaPdtPorSerie[serie] || "";
@@ -521,7 +561,7 @@
         listaSeriesOrdenada.forEach(s => { html += `<option value="${s}">${s}</option>`; });
         selSerie.innerHTML = html;
         selSerie.disabled = false;
-        document.getElementById('textoAjudaPdt').innerText = "Perfil Gestão/Admin: você pode selecionar e editar qualquer turma.";
+        document.getElementById('textoAjudaPdt').innerText = "Perfil Gestão/Admin: você pode selecionar e editar qualquer turma desta escola.";
         if (listaSeriesOrdenada.length > 0) {
           selSerie.value = listaSeriesOrdenada[0];
           aoSelecionarSerie();
@@ -564,7 +604,6 @@
       const pdt = mapaPdtPorSerie[serie.toUpperCase()] || "Não atribuído";
       inputPdt.value = pdt;
 
-      // Se a lista de alunos da série ainda não tiver fotos em Base64, busca também via getAlunosParaEdicao
       alunosDaSerieAtual = todosAlunosEscola
         .filter(a => String(a.serie || "").trim().toUpperCase() === serie.toUpperCase())
         .sort((a, b) => a.nome.localeCompare(b.nome));
@@ -600,7 +639,7 @@
       }
 
       if (!carregouOnline) {
-        const salvoCache = cacheMapeamentosGlobal[serie] || JSON.parse(localStorage.getItem(`mapeamento_sala_${serie}`) || 'null');
+        const salvoCache = cacheMapeamentosGlobal[serie] || JSON.parse(localStorage.getItem(`${ESCOLA_CACHE_PREFIX}sala_${serie}`) || 'null');
         if (salvoCache && salvoCache.posicoes && Object.keys(salvoCache.posicoes).length > 0) {
           document.getElementById('selectColunas').value = salvoCache.colunas || 5;
           document.getElementById('selectLinhas').value = salvoCache.linhas || 7;
@@ -801,7 +840,7 @@
         ultimaAtualizacao: cacheMapeamentosGlobal[serie]?.ultimaAtualizacao || agoraStr,
         atualizadoPor: cacheMapeamentosGlobal[serie]?.atualizadoPor || nomeUsuarioLogado
       };
-      localStorage.setItem(`mapeamento_sala_${serie}`, JSON.stringify(obj));
+      localStorage.setItem(`${ESCOLA_CACHE_PREFIX}sala_${serie}`, JSON.stringify(obj));
     }
 
     async function salvarMapeamentoNoBanco() {
@@ -858,22 +897,22 @@
 
     function adicionarNaFilaOffline(dadosSalvar) {
       try {
-        let fila = JSON.parse(localStorage.getItem('fila_offline_mapeamento') || '[]');
+        let fila = JSON.parse(localStorage.getItem(ESCOLA_CACHE_PREFIX + 'fila_offline') || '[]');
         fila = fila.filter(item => item.serie !== dadosSalvar.serie);
         fila.push(dadosSalvar);
-        localStorage.setItem('fila_offline_mapeamento', JSON.stringify(fila));
+        localStorage.setItem(ESCOLA_CACHE_PREFIX + 'fila_offline', JSON.stringify(fila));
       } catch (e) {}
     }
 
     async function sincronizarFilaOfflinePendente() {
       if (!navigator.onLine) return;
       try {
-        let fila = JSON.parse(localStorage.getItem('fila_offline_mapeamento') || '[]');
+        let fila = JSON.parse(localStorage.getItem(ESCOLA_CACHE_PREFIX + 'fila_offline') || '[]');
         if (fila.length === 0) return;
         for (let item of fila) {
           await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'salvarMapeamentoSala', dados: item, usuarioLogado: item.autor }) });
         }
-        localStorage.removeItem('fila_offline_mapeamento');
+        localStorage.removeItem(ESCOLA_CACHE_PREFIX + 'fila_offline');
       } catch (e) {}
     }
 
@@ -881,8 +920,9 @@
       const tbody = document.getElementById('tbodyMapeamentosSalvos');
       if (!tbody) return;
 
+      // Adiciona apenas as séries que pertencem a ESTA escola
       Object.keys(mapaPdtPorSerie).forEach(s => {
-        if (!cacheMapeamentosGlobal[s]) {
+        if (seriePertenceAEstaEscola(s) && !cacheMapeamentosGlobal[s]) {
           cacheMapeamentosGlobal[s] = {
             serie: s, pdt: mapaPdtPorSerie[s] || "Não atribuído", colunas: 5, linhas: 7,
             posicoes: {}, ultimaAtualizacao: "Ainda não salvo", atualizadoPor: "-"
@@ -890,9 +930,13 @@
         }
       });
 
-      const listaSeries = Object.keys(cacheMapeamentosGlobal).sort();
+      // Filtra qualquer resquício de série que não pertença a esta escola
+      const listaSeries = Object.keys(cacheMapeamentosGlobal)
+        .filter(s => seriePertenceAEstaEscola(s))
+        .sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+
       if (listaSeries.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Nenhum mapeamento encontrado.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Nenhum mapeamento encontrado para esta escola.</td></tr>';
         return;
       }
 
@@ -987,7 +1031,6 @@
       cardVis.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    // CONVERSOR UNIVERSAL DE FOTOS PARA O PDF (Suporta Base64, Links AppSheet via Proxy CORS e Canvas)
     function converterQualquerFotoParaJpegPdf(urlOuBase64) {
       return new Promise((resolve) => {
         if (!urlOuBase64) return resolve(null);
@@ -1017,13 +1060,10 @@
           img.src = imgSource;
         }
 
-        // 1. Se já for Base64 data:image, normaliza num canvas JPEG limpo para o jsPDF nunca recusar
         if (s.startsWith('data:image')) {
           return desenharNoCanvas3x4(s);
         }
 
-        // 2. Se for um link externo (ex: AppSheet ou Drive), tenta primeiro via Proxy CORS de Imagem (wsrv.nl)
-        // pois o AppSheet bloqueia requisições XHR diretas do navegador!
         if (s.startsWith('http://') || s.startsWith('https://')) {
           const proxyUrl = "https://wsrv.nl/?url=" + encodeURIComponent(s) + "&w=180&h=240&fit=cover&output=jpg";
           let xhr = new XMLHttpRequest();
@@ -1082,7 +1122,6 @@
       });
 
       try {
-        // Se estiver online, faz um refresh rápido das fotos da série direto do servidor para garantir fotos recém-salvas
         if (navigator.onLine) {
           try {
             const resFrescos = await fetch(API_URL + "?v=" + new Date().getTime(), {
@@ -1091,7 +1130,7 @@
             }).then(r => r.json()).catch(() => null);
             if (resFrescos && Array.isArray(resFrescos.alunos)) {
               todosAlunosEscola = resFrescos.alunos;
-              localStorage.setItem('cache_alunos_mapa_v2', JSON.stringify(todosAlunosEscola));
+              localStorage.setItem(ESCOLA_CACHE_PREFIX + 'alunos_v3', JSON.stringify(todosAlunosEscola));
             }
           } catch (e) {}
         }
@@ -1099,7 +1138,6 @@
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('landscape', 'mm', 'a4');
 
-        // Logo da Escola
         try {
           const imgLogoDom = document.querySelector('.logo-escola');
           if (imgLogoDom && imgLogoDom.complete && imgLogoDom.naturalWidth > 0) {
@@ -1111,10 +1149,12 @@
           }
         } catch (e) {}
 
+        const nomeEscolaCabecalho = (document.getElementById('subtituloNomeEscola')?.innerText || "E.E.M.T.I AGOSTINHO NERES PORTELA").toUpperCase();
+
         doc.setFont("helvetica", "bold");
         doc.setFontSize(12);
         doc.setTextColor(15, 118, 110);
-        doc.text("MAPEAMENTO OFICIAL DE SALA DE AULA — E.E.M.T.I AGOSTINHO NERES PORTELA", 33, 13);
+        doc.text(`MAPEAMENTO OFICIAL DE SALA DE AULA — ${nomeEscolaCabecalho}`, 33, 13);
 
         doc.setFontSize(9.5);
         doc.setTextColor(30, 41, 59);
@@ -1151,7 +1191,6 @@
           doc.text(`FILA ${c}`, xFila + larguraCard / 2, topoGrade + 3.8, { align: 'center' });
         }
 
-        // CARREGAMENTO PARALELO DE TODAS AS FOTOS 3X4 DOS ALUNOS ALOCADOS
         const cacheFotos = {};
         const nomesUnicosNoMapa = [...new Set(Object.values(mapaPosicoes).filter(Boolean))];
 
