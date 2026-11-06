@@ -25,6 +25,7 @@
     .card-header-custom { background: transparent; border-bottom: 1px solid #eaeaea; padding-bottom: 14px; margin-bottom: 18px; font-weight: 700; font-size: 1.1rem; }
     .form-control, .form-select { border-radius: 8px; border: 1px solid #ced4da; padding: 10px 14px; }
     .form-control:focus, .form-select:focus { border-color: #0f766e; box-shadow: 0 0 0 0.25rem rgba(15, 118, 110, 0.15); }
+    .campo-fixo-bloqueado { background-color: #f1f5f9 !important; color: #0f766e !important; font-weight: 700; cursor: not-allowed; }
     .btn { border-radius: 8px; padding: 9px 18px; font-weight: 600; }
     .btn-primary { background-color: #0f766e; border: none; color: white; }
     .btn-primary:hover { background-color: #0d645e; color: white; }
@@ -62,7 +63,7 @@
   <div class="main-container">
     <ul class="nav nav-tabs mb-4" id="atendimentoTabs" role="tablist">
       <li class="nav-item" role="presentation">
-        <button class="nav-link active fw-bold" id="form-tab" data-bs-toggle="tab" data-bs-target="#tabForm" type="button" role="tab">
+        <button class="nav-link active fw-bold" id="form-tab" data-bs-toggle="tab" data-bs-target="#tabForm" type="button" role="tab" onclick="atualizarRelogioFixoAtendimento()">
           <i class="bi bi-journal-plus me-2"></i>Registrar Atendimento (Acordo com Responsável)
         </button>
       </li>
@@ -89,8 +90,8 @@
 
           <div id="alertaAlunoSuspensoForm" class="alert alert-danger border-danger d-none mb-3 small">
             <i class="bi bi-exclamation-triangle-fill me-2"></i>
-            <b>Atenção:</b> Este(a) aluno(a) consta na lista de <b>Necessitados de Suspensão</b> (Data da Suspensão: <b id="lblDataSuspensaoForm">-</b>).
-            Ao salvar este atendimento com data igual ou posterior à suspensão, o sistema dará baixa automática e moverá para o <b>Histórico</b>.
+            <b>Atenção:</b> Este(a) aluno(a) consta na lista de <b>Necessitados de Suspensão</b> (Data de Referência: <b id="lblDataSuspensaoForm">-</b>).
+            Ao salvar este atendimento, o sistema dará baixa automática na suspensão com a data e hora exatas deste atendimento e moverá o registro para o <b>Histórico</b>.
           </div>
 
           <form id="formAtendimento" onsubmit="event.preventDefault(); salvarAtendimento();">
@@ -108,8 +109,8 @@
                 <datalist id="listaAlunosDatalist"></datalist>
               </div>
               <div class="col-md-4">
-                <label class="form-label fw-bold small">Data e Hora do Atendimento</label>
-                <input type="datetime-local" id="atendDataHora" class="form-control" required>
+                <label class="form-label fw-bold small"><i class="bi bi-lock-fill text-secondary me-1"></i>Data e Hora do Atendimento (Fixa)</label>
+                <input type="text" id="atendDataHoraFixa" class="form-control campo-fixo-bloqueado" readonly tabindex="-1" title="Data e horário travados automaticamente no momento do atendimento">
               </div>
 
               <div class="col-md-3">
@@ -129,8 +130,8 @@
                 <input type="text" id="atendNomeResponsavel" class="form-control text-uppercase" required placeholder="Ex: MARIA EDILENE DA SILVA">
               </div>
               <div class="col-md-4">
-                <label class="form-label fw-bold small">Atendido Por (Servidor / PDT / Gestão)</label>
-                <input type="text" id="atendPor" class="form-control fw-bold bg-light" required>
+                <label class="form-label fw-bold small"><i class="bi bi-lock-fill text-secondary me-1"></i>Atendido Por (Servidor / PDT / Gestão)</label>
+                <input type="text" id="atendPor" class="form-control fw-bold bg-light" required readonly tabindex="-1">
               </div>
 
               <div class="col-md-12">
@@ -308,25 +309,34 @@
       return new Date(agora - offset).toISOString().slice(0, 10);
     }
 
-    function preencherDataHoraAtualInput() {
+    // Gera a string de Data e Hora exatas do momento atual no formato "dd/MM/yyyy HH:mm"
+    function obterDataHoraAtualFormatadaBR() {
       const agora = new Date();
-      const offset = agora.getTimezoneOffset() * 60000;
-      const localISOTime = new Date(agora - offset).toISOString().slice(0, 16);
-      document.getElementById('atendDataHora').value = localISOTime;
-      document.getElementById('manData').value = localISOTime.slice(0, 10);
+      const dia = String(agora.getDate()).padStart(2, '0');
+      const mes = String(agora.getMonth() + 1).padStart(2, '0');
+      const ano = agora.getFullYear();
+      const hora = String(agora.getHours()).padStart(2, '0');
+      const min = String(agora.getMinutes()).padStart(2, '0');
+      return `${dia}/${mes}/${ano} ${hora}:${min}`;
     }
 
-    function formatarDatetimeLocalParaBR(valIso) {
-      if (!valIso) return "";
-      const partes = valIso.split('T');
-      const d = partes[0].split('-');
-      const hora = partes[1] || "08:00";
-      if (d.length === 3) return `${d[2]}/${d[1]}/${d[0]} ${hora}`;
-      return valIso;
+    // Atualiza o campo de Data e Hora do Atendimento (Fixo / Somente Leitura)
+    function atualizarRelogioFixoAtendimento() {
+      const inputFixo = document.getElementById('atendDataHoraFixa');
+      if (inputFixo) {
+        inputFixo.value = obterDataHoraAtualFormatadaBR();
+      }
+      const manDataEl = document.getElementById('manData');
+      if (manDataEl && !manDataEl.value) {
+        manDataEl.value = obterDataHojeIso();
+      }
     }
+
+    // Mantém o horário do formulário sincronizado com o relógio real a cada 15 segundos
+    setInterval(atualizarRelogioFixoAtendimento, 15000);
 
     window.onload = async function() {
-      preencherDataHoraAtualInput();
+      atualizarRelogioFixoAtendimento();
       modalManualInstancia = new bootstrap.Modal(document.getElementById('modalSuspensaoManual'));
 
       const u = JSON.parse(localStorage.getItem('usuarioLogado') || 'null');
@@ -411,7 +421,7 @@
         alertaBox.classList.remove('d-none');
         document.getElementById('lblDataSuspensaoForm').innerText = itemSusp.dataSuspensao || '-';
         document.getElementById('atendDataSuspensaoRef').value = itemSusp.dataSuspensao || '';
-        badgeVinc.innerText = `Resolvendo Suspensão (${itemSusp.dataSuspensao})`;
+        badgeVinc.innerText = `Resolvendo Suspensão de ${itemSusp.dataSuspensao}`;
         badgeVinc.classList.remove('d-none');
       } else {
         alertaBox.classList.add('d-none');
@@ -425,7 +435,9 @@
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Salvando...';
 
-      const dataHoraBr = formatarDatetimeLocalParaBR(document.getElementById('atendDataHora').value);
+      // Garante a captura exata da data e horário do momento em que o atendimento está sendo salvo
+      atualizarRelogioFixoAtendimento();
+      const dataHoraBr = document.getElementById('atendDataHoraFixa').value;
 
       const payload = {
         action: 'salvarAtendimentoAluno',
@@ -449,8 +461,9 @@
         if (res && res.success) {
           Swal.fire({ title: 'Atendimento Registrado!', text: res.msg, icon: 'success', confirmButtonColor: '#0f766e' });
           document.getElementById('formAtendimento').reset();
-          preencherDataHoraAtualInput();
-          document.getElementById('atendPor').value = (usuarioLogado.nome || "").toUpperCase();
+          atualizarRelogioFixoAtendimento();
+          const nomeServ = usuarioLogado.nome || usuarioLogado.usuario?.nome || usuarioLogado.col1 || "";
+          document.getElementById('atendPor').value = nomeServ.toUpperCase();
           document.getElementById('alertaAlunoSuspensoForm').classList.add('d-none');
           document.getElementById('badgeVinculoSuspensao').classList.add('d-none');
 
@@ -517,7 +530,6 @@
         return;
       }
 
-      // Data de início padrão = Data de HOJE (dia em que o termo está sendo gerado)
       const dataHojeIso = obterDataHojeIso();
 
       let html = '';
@@ -545,7 +557,7 @@
               <button class="btn btn-sm btn-outline-danger fw-bold me-1" onclick="gerarTermoSuspensaoPorIndice(${idx})" title="Configurar dias e gerar Termo de Suspensão com início hoje">
                 <i class="bi bi-file-earmark-pdf-fill me-1"></i>Termo PDF
               </button>
-              <button class="btn btn-sm btn-success fw-bold" onclick="irParaAtendimentoDoAlunoSuspenso(${idx})" title="Registrar comparecimento do responsável">
+              <button class="btn btn-sm btn-success fw-bold" onclick="irParaAtendimentoDoAlunoSuspenso(${idx})" title="Registrar comparecimento do responsável com data e hora atuais fixas">
                 <i class="bi bi-person-check-fill me-1"></i>Atender
               </button>
             </td>
@@ -565,7 +577,6 @@
       return limpo;
     }
 
-    // Calcula a data de retorno pulando finais de semana (Sábado e Domingo)
     function calcularDataRetornoLetivoIso(dataInicioIso, diasSuspensao) {
       const partes = String(dataInicioIso).split('-');
       if (partes.length !== 3) return dataInicioIso;
@@ -603,17 +614,20 @@
       return isoStr;
     }
 
+    // Ao clicar em "Atender", preenche o aluno e crava a data e hora exatas daquele momento (bloqueado para edição)
     function irParaAtendimentoDoAlunoSuspenso(idxFiltrado) {
       const item = (window._listaSuspensaoFiltradaAtual || [])[idxFiltrado];
       if (!item) return;
 
-      // Mantém a data original de referência da ocorrência para garantir que o backend dê baixa em todas as ocorrências anteriores
       const dataSuspRefOriginal = item.dataSuspensao || formatarIsoParaDataBr(obterDataHojeIso());
 
       document.getElementById('atendFiltroSerie').value = item.serie || "";
       filtrarDatalistPorSerieForm();
       document.getElementById('atendAluno').value = item.aluno;
-      preencherDataHoraAtualInput();
+
+      // Crava a data e hora atuais exatas do momento do clique em Atender
+      atualizarRelogioFixoAtendimento();
+
       verificarSeAlunoEstaSuspensoForm();
       document.getElementById('lblDataSuspensaoForm').innerText = dataSuspRefOriginal;
       document.getElementById('atendDataSuspensaoRef').value = dataSuspRefOriginal;
@@ -625,7 +639,7 @@
 
     function abrirModalSuspensaoManual() {
       document.getElementById('formSuspensaoManual').reset();
-      preencherDataHoraAtualInput();
+      document.getElementById('manData').value = obterDataHojeIso();
       filtrarAlunosModalManual();
       modalManualInstancia.show();
     }
@@ -679,13 +693,11 @@
       }
     }
 
-    // Abre caixa com a Data de Início cravada no DIA DE HOJE (dia em que está gerando o termo), permite escolher os dias e gera o PDF
     async function gerarTermoSuspensaoPorIndice(idxFiltrado) {
       const item = (window._listaSuspensaoFiltradaAtual || [])[idxFiltrado];
       if (!item) return;
 
       const inputDataEl = document.getElementById(`dataSusp_${idxFiltrado}`);
-      // Por padrão usa a data selecionada na linha (que já inicia como HOJE)
       const dataHojePadraoIso = (inputDataEl && inputDataEl.value) ? inputDataEl.value : obterDataHojeIso();
       const dataRetornoSugeridaIso = calcularDataRetornoLetivoIso(dataHojePadraoIso, 2);
 
@@ -764,7 +776,6 @@
 
       if (!dadosTermo) return;
 
-      // Sincroniza a data escolhida no modal com o input da linha da tabela
       if (inputDataEl) inputDataEl.value = dadosTermo.dataInicioIso;
 
       const dataInicioBr = dadosTermo.dataInicioBr;
@@ -805,7 +816,6 @@
       doc.text(`Aluno(a): ${item.aluno}`, 14, 55);
       doc.text(`Série / Turma: ${item.serie}   |   Professor(a) PDT: ${pdtNome}`, 14, 62);
 
-      // Quadro de Período da Suspensão e Retorno
       doc.setDrawColor(15, 118, 110); doc.setFillColor(240, 253, 244);
       doc.roundedRect(14, 66, 182, 16, 2, 2, 'FD');
       doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(15, 118, 110);
@@ -813,7 +823,6 @@
       doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(30, 41, 59);
       doc.text(`* O(A) responsável legal poderá comparecer à escola a qualquer momento, inclusive durante o período de suspensão.`, 18, 79);
 
-      // Quadro de Motivo / Critério
       doc.setDrawColor(200, 200, 200); doc.setFillColor(248, 250, 252);
       doc.roundedRect(14, 86, 182, 36, 2, 2, 'FD');
       doc.setFont("helvetica", "bold"); doc.setFontSize(9.5); doc.setTextColor(180, 40, 40);
