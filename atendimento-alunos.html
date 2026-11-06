@@ -154,7 +154,7 @@
           <div class="card-header-custom d-flex justify-content-between align-items-center flex-wrap gap-2 text-danger">
             <div>
               <i class="bi bi-shield-exclamation me-2"></i>Alunos Necessitados de Suspensão
-              <div class="small fw-normal text-muted mt-1">Gerencie as suspensões, ajuste a data inicial de cumprimento e emita o Termo em PDF informando os dias e a data de retorno.</div>
+              <div class="small fw-normal text-muted mt-1">A data de início da suspensão vem preenchida automaticamente com a <b>data de hoje (dia da emissão do termo)</b>, podendo ser ajustada se necessário.</div>
             </div>
             <div class="d-flex flex-wrap gap-2 align-items-center">
               <button class="btn btn-danger btn-sm fw-bold" onclick="abrirModalSuspensaoManual()">
@@ -190,7 +190,7 @@
                   <th>Aluno(a)</th>
                   <th>Série / PDT</th>
                   <th class="text-center">Origem</th>
-                  <th class="text-center" style="width: 170px;">Data de Suspensão</th>
+                  <th class="text-center" style="width: 185px;">Início da Suspensão (Hoje)</th>
                   <th>Motivo / Critério</th>
                   <th class="text-end" style="width: 280px;">Ações</th>
                 </tr>
@@ -301,6 +301,13 @@
     let mapaPdtGlobal = {};
     let modalManualInstancia;
 
+    // Retorna sempre a data local exata de HOJE no formato YYYY-MM-DD
+    function obterDataHojeIso() {
+      const agora = new Date();
+      const offset = agora.getTimezoneOffset() * 60000;
+      return new Date(agora - offset).toISOString().slice(0, 10);
+    }
+
     function preencherDataHoraAtualInput() {
       const agora = new Date();
       const offset = agora.getTimezoneOffset() * 60000;
@@ -404,7 +411,7 @@
         alertaBox.classList.remove('d-none');
         document.getElementById('lblDataSuspensaoForm').innerText = itemSusp.dataSuspensao || '-';
         document.getElementById('atendDataSuspensaoRef').value = itemSusp.dataSuspensao || '';
-        badgeVinc.innerText = `Resolvendo Suspensão de ${itemSusp.dataSuspensao}`;
+        badgeVinc.innerText = `Resolvendo Suspensão (${itemSusp.dataSuspensao})`;
         badgeVinc.classList.remove('d-none');
       } else {
         alertaBox.classList.add('d-none');
@@ -510,6 +517,9 @@
         return;
       }
 
+      // Data de início padrão = Data de HOJE (dia em que o termo está sendo gerado)
+      const dataHojeIso = obterDataHojeIso();
+
       let html = '';
       filtrados.forEach((item, idx) => {
         const badgeOrigem = item.tipoOrigem === "MANUAL" ? `<span class="badge bg-dark">Manual</span>` : `<span class="badge bg-danger">Automática</span>`;
@@ -524,14 +534,15 @@
             </td>
             <td class="text-center">${badgeOrigem}</td>
             <td class="text-center">
-              <input type="date" class="form-control form-control-sm text-center fw-bold text-danger" id="dataSusp_${idx}" value="${converterDataParaInputHtml(item.dataSuspensao)}" title="Clique para alterar a data de início da suspensão">
+              <input type="date" class="form-control form-control-sm text-center fw-bold text-danger" id="dataSusp_${idx}" value="${dataHojeIso}" title="Data em que o termo é gerado (início da suspensão)">
+              <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">Últ. ocorr.: ${item.dataSuspensao || '-'}</small>
             </td>
             <td>
               <div class="text-danger fw-semibold"><i class="bi bi-exclamation-triangle-fill me-1"></i>${item.motivo}</div>
               ${item.detalhesOcorrencias ? `<div class="small text-muted text-truncate" style="max-width: 250px;" title="${item.detalhesOcorrencias}">${item.detalhesOcorrencias}</div>` : ''}
             </td>
             <td class="text-end text-nowrap">
-              <button class="btn btn-sm btn-outline-danger fw-bold me-1" onclick="gerarTermoSuspensaoPorIndice(${idx})" title="Informar quantidade de dias e gerar Termo de Suspensão em PDF">
+              <button class="btn btn-sm btn-outline-danger fw-bold me-1" onclick="gerarTermoSuspensaoPorIndice(${idx})" title="Configurar dias e gerar Termo de Suspensão com início hoje">
                 <i class="bi bi-file-earmark-pdf-fill me-1"></i>Termo PDF
               </button>
               <button class="btn btn-sm btn-success fw-bold" onclick="irParaAtendimentoDoAlunoSuspenso(${idx})" title="Registrar comparecimento do responsável">
@@ -545,7 +556,7 @@
     }
 
     function converterDataParaInputHtml(dataBr) {
-      if (!dataBr) return new Date().toISOString().split('T')[0];
+      if (!dataBr) return obterDataHojeIso();
       let limpo = String(dataBr).split(' ')[0].trim();
       if (limpo.includes('/')) {
         const p = limpo.split('/');
@@ -562,12 +573,10 @@
       let dt = new Date(parseInt(partes[0], 10), parseInt(partes[1], 10) - 1, parseInt(partes[2], 10), 12, 0, 0);
       let qtdDias = Math.max(1, parseInt(diasSuspensao, 10) || 1);
 
-      // O 1º dia de suspensão começa na data de início (se cair no fim de semana, avança para segunda)
       while (dt.getDay() === 0 || dt.getDay() === 6) {
         dt.setDate(dt.getDate() + 1);
       }
 
-      // Avança os dias restantes de cumprimento da suspensão
       let cumpridos = 1;
       while (cumpridos < qtdDias) {
         dt.setDate(dt.getDate() + 1);
@@ -576,7 +585,6 @@
         }
       }
 
-      // O retorno ocorre no próximo dia útil imediatamente após o último dia de suspensão
       dt.setDate(dt.getDate() + 1);
       while (dt.getDay() === 0 || dt.getDay() === 6) {
         dt.setDate(dt.getDate() + 1);
@@ -599,19 +607,16 @@
       const item = (window._listaSuspensaoFiltradaAtual || [])[idxFiltrado];
       if (!item) return;
 
-      const inputDataEl = document.getElementById(`dataSusp_${idxFiltrado}`);
-      let dataSuspUsada = item.dataSuspensao;
-      if (inputDataEl && inputDataEl.value) {
-        dataSuspUsada = formatarIsoParaDataBr(inputDataEl.value);
-      }
+      // Mantém a data original de referência da ocorrência para garantir que o backend dê baixa em todas as ocorrências anteriores
+      const dataSuspRefOriginal = item.dataSuspensao || formatarIsoParaDataBr(obterDataHojeIso());
 
       document.getElementById('atendFiltroSerie').value = item.serie || "";
       filtrarDatalistPorSerieForm();
       document.getElementById('atendAluno').value = item.aluno;
       preencherDataHoraAtualInput();
       verificarSeAlunoEstaSuspensoForm();
-      document.getElementById('lblDataSuspensaoForm').innerText = dataSuspUsada;
-      document.getElementById('atendDataSuspensaoRef').value = dataSuspUsada;
+      document.getElementById('lblDataSuspensaoForm').innerText = dataSuspRefOriginal;
+      document.getElementById('atendDataSuspensaoRef').value = dataSuspRefOriginal;
 
       const tabFormBtn = document.getElementById('form-tab');
       bootstrap.Tab.getOrCreateInstance(tabFormBtn).show();
@@ -674,38 +679,41 @@
       }
     }
 
-    // Abre caixa para digitar quantos dias o aluno será suspenso, calcula o retorno e gera o Termo em PDF
+    // Abre caixa com a Data de Início cravada no DIA DE HOJE (dia em que está gerando o termo), permite escolher os dias e gera o PDF
     async function gerarTermoSuspensaoPorIndice(idxFiltrado) {
       const item = (window._listaSuspensaoFiltradaAtual || [])[idxFiltrado];
       if (!item) return;
 
       const inputDataEl = document.getElementById(`dataSusp_${idxFiltrado}`);
-      const dataInicioIso = (inputDataEl && inputDataEl.value)
-        ? inputDataEl.value
-        : converterDataParaInputHtml(item.dataSuspensao);
-
-      const dataInicioBr = formatarIsoParaDataBr(dataInicioIso);
-      const dataRetornoSugeridaIso = calcularDataRetornoLetivoIso(dataInicioIso, 2);
+      // Por padrão usa a data selecionada na linha (que já inicia como HOJE)
+      const dataHojePadraoIso = (inputDataEl && inputDataEl.value) ? inputDataEl.value : obterDataHojeIso();
+      const dataRetornoSugeridaIso = calcularDataRetornoLetivoIso(dataHojePadraoIso, 2);
 
       const { value: dadosTermo } = await Swal.fire({
-        title: 'Configurar Termo de Suspensão',
+        title: 'Emitir Termo de Suspensão',
         html: `
           <div class="text-start small">
             <div class="p-2 mb-3 rounded bg-light border">
               <div><b>Aluno(a):</b> ${item.aluno}</div>
-              <div><b>Turma:</b> ${item.serie} | <b>Início da Suspensão:</b> <span class="text-danger fw-bold">${dataInicioBr}</span></div>
+              <div><b>Série / Turma:</b> ${item.serie}</div>
             </div>
-            <div class="mb-3">
-              <label class="form-label fw-bold text-dark">Quantos dias letivos o(a) aluno(a) ficará suspenso(a)?</label>
-              <input type="number" id="swalDiasSuspensao" class="form-control fw-bold text-center fs-5" min="1" max="15" value="2">
+            <div class="row g-2 mb-3">
+              <div class="col-7">
+                <label class="form-label fw-bold text-dark">Data de Início (Dia da Emissão):</label>
+                <input type="date" id="swalDataInicio" class="form-control fw-bold text-danger" value="${dataHojePadraoIso}">
+              </div>
+              <div class="col-5">
+                <label class="form-label fw-bold text-dark">Qtd. de Dias:</label>
+                <input type="number" id="swalDiasSuspensao" class="form-control fw-bold text-center" min="1" max="15" value="2">
+              </div>
             </div>
             <div class="mb-2">
               <label class="form-label fw-bold text-dark">Data Prevista de Retorno às Aulas:</label>
               <input type="date" id="swalDataRetorno" class="form-control fw-bold text-success" value="${dataRetornoSugeridaIso}">
-              <small class="text-muted">Calculada automaticamente em dias úteis (você pode ajustar se houver feriado).</small>
+              <small class="text-muted">Calculada automaticamente em dias úteis a partir da data de início acima.</small>
             </div>
             <div class="alert alert-info py-2 px-3 mt-3 mb-0 small">
-              <i class="bi bi-info-circle-fill me-1"></i>O PDF informará a data de início, os dias de suspensão, a data de retorno e destacará que <b>o responsável pode comparecer à escola a qualquer momento</b> (inclusive durante o prazo da suspensão).
+              <i class="bi bi-info-circle-fill me-1"></i>O Termo sairá com a data de início acima, a data de retorno e a observação de que <b>o responsável pode comparecer à escola a qualquer momento</b>.
             </div>
           </div>`,
         icon: 'warning',
@@ -715,16 +723,28 @@
         confirmButtonText: '<i class="bi bi-file-earmark-pdf-fill me-1"></i>Gerar Termo PDF',
         cancelButtonText: 'Cancelar',
         didOpen: () => {
+          const inpInicio = document.getElementById('swalDataInicio');
           const inpDias = document.getElementById('swalDiasSuspensao');
           const inpRet = document.getElementById('swalDataRetorno');
-          inpDias.addEventListener('input', () => {
+
+          function atualizarRetornoAutomatico() {
+            const dtIni = inpInicio.value || obterDataHojeIso();
             const d = parseInt(inpDias.value, 10) || 1;
-            inpRet.value = calcularDataRetornoLetivoIso(dataInicioIso, d);
-          });
+            inpRet.value = calcularDataRetornoLetivoIso(dtIni, d);
+          }
+
+          inpInicio.addEventListener('change', atualizarRetornoAutomatico);
+          inpDias.addEventListener('input', atualizarRetornoAutomatico);
         },
         preConfirm: () => {
+          const iniIso = document.getElementById('swalDataInicio').value;
           const dias = parseInt(document.getElementById('swalDiasSuspensao').value, 10);
           const retIso = document.getElementById('swalDataRetorno').value;
+
+          if (!iniIso) {
+            Swal.showValidationMessage('Informe a data de início da suspensão.');
+            return false;
+          }
           if (!dias || dias < 1) {
             Swal.showValidationMessage('Informe uma quantidade válida de dias (mínimo 1 dia).');
             return false;
@@ -734,6 +754,8 @@
             return false;
           }
           return {
+            dataInicioIso: iniIso,
+            dataInicioBr: formatarIsoParaDataBr(iniIso),
             dias: dias,
             dataRetornoBr: formatarIsoParaDataBr(retIso)
           };
@@ -742,6 +764,10 @@
 
       if (!dadosTermo) return;
 
+      // Sincroniza a data escolhida no modal com o input da linha da tabela
+      if (inputDataEl) inputDataEl.value = dadosTermo.dataInicioIso;
+
+      const dataInicioBr = dadosTermo.dataInicioBr;
       const qtdDias = dadosTermo.dias;
       const textoDias = qtdDias === 1 ? "01 (um) dia letivo" : `${String(qtdDias).padStart(2, '0')} (${qtdDias}) dias letivos`;
       const dataRetornoBr = dadosTermo.dataRetornoBr;
@@ -817,7 +843,7 @@
       doc.text("Assinatura do Responsável Legal", 155, finalY + 5, { align: 'center' });
 
       doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(120, 120, 120);
-      doc.text(`Documento emitido em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, 105, 232, { align: 'center' });
+      doc.text(`Documento emitido em ${dataInicioBr} às ${new Date().toLocaleTimeString('pt-BR')}`, 105, 232, { align: 'center' });
 
       doc.save(`Termo_Suspensao_${item.aluno.replace(/\s+/g, '_')}.pdf`);
     }
